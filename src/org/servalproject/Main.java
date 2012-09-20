@@ -208,6 +208,15 @@ public class Main extends Activity implements ConnectionStateListener {
 		});
 
 		smsView = (ImageView) findViewById(R.id.imageView4);
+		smsView.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				startActivityForResult(new Intent(getApplicationContext(),
+						org.servalproject.messages.MessagesListActivity.class),
+						0);
+			}
+		});
+
 		tetherView = (ImageView) findViewById(R.id.imageView5);
 		tetherView.setOnClickListener(new OnClickListener() {
 
@@ -516,12 +525,23 @@ public class Main extends Activity implements ConnectionStateListener {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 
-			Log.d(TAG, "received state change event");
+			Log.d(TAG, "received Broadcast");
 
-			int stateOrd = intent.getIntExtra(
-					ServalBatPhoneApplication.EXTRA_STATE, 0);
-			State state = State.values()[stateOrd];
-			stateChanged(state);
+			if (intent.getAction().equals(
+					ServalBatPhoneApplication.ACTION_STATE)) {
+				Log.d(TAG, "received Broadcast: state changed");
+
+				int stateOrd = intent.getIntExtra(
+						ServalBatPhoneApplication.EXTRA_STATE, 0);
+				State state = State.values()[stateOrd];
+				stateChanged(state);
+			} else if (intent.getAction().equals(
+					Control.BROADCAST_PEERCOUNTCHANGED)) {
+				Log.d(TAG, "received Broadcast: peerCount notification");
+
+				int peerCount = intent.getIntExtra(Control.PEERCOUNT, 0);
+				Main.this.peerCount.setText("" + peerCount);
+			}
 		}
 	};
 
@@ -698,6 +718,7 @@ public class Main extends Activity implements ConnectionStateListener {
 		if (!registered) {
 			IntentFilter filter = new IntentFilter();
 			filter.addAction(ServalBatPhoneApplication.ACTION_STATE);
+			filter.addAction(Control.BROADCAST_PEERCOUNTCHANGED);
 			this.registerReceiver(receiver, filter);
 			registered = true;
 		}

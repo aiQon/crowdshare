@@ -55,6 +55,9 @@ public class Control extends Service {
 	public static final String ACTION_RESTART = "org.servalproject.restart";
 	private static Control instance;
 
+	public static String BROADCAST_PEERCOUNTCHANGED = "de.cased.mobilecloud.PEERCOUNTCHANGED";
+	public static String PEERCOUNT = "de.cased.mobilecloud.PEERCOUNT";
+
 	private BroadcastReceiver receiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
@@ -166,6 +169,11 @@ public class Control extends Service {
 	}
 
 	private void updateNotification() {
+
+		Intent broadcast = new Intent(BROADCAST_PEERCOUNTCHANGED);
+		broadcast.putExtra(PEERCOUNT, peerCount);
+		sendBroadcast(broadcast);
+
 		Notification notification = new Notification(
 				R.drawable.ic_serval_logo, "Serval Mesh",
 				System.currentTimeMillis());
@@ -177,6 +185,8 @@ public class Control extends Service {
 				+ 1
 				+ " Phone(s)", PendingIntent.getActivity(app, 0, intent,
 				PendingIntent.FLAG_UPDATE_CURRENT));
+
+		// TODO: fire broadcast Intent with new peerCount Info.
 
 		notification.flags = Notification.FLAG_ONGOING_EVENT;
 		this.startForeground(-1, notification);
