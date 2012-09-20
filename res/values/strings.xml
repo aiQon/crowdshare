@@ -92,7 +92,7 @@
     <string name="warning2">SOFTWARE</string>
     <string name="affirm">YES</string> 
     <string name="deny">NO</string>    
-	<string name="app_name">Serval Mesh</string>
+	<string name="app_name">MobileCloud</string>
 	<string name="agree">I agree</string>
 	<string name="cancel">Cancel</string>
 	<string name="wifiJammed">Wifi Issue</string>
