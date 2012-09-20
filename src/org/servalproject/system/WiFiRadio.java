@@ -875,17 +875,19 @@ public class WiFiRadio {
 		case Off:
 			break;
 		case Adhoc:
-			if (shell == null)
-				shell = Shell.startRootShell();
 
-			if (routingImp != null && routingImp.isRunning()) {
+			if (routingImp != null) {
 				Log.v("BatPhone", "Stopping routing engine");
 				LogActivity.logMessage("adhoc", "Calling routingImp.stop()",
 						false);
 				this.routingImp.stop();
 			}
 
+			if (shell == null)
+				shell = Shell.startRootShell();
+
 			stopAdhoc(shell);
+
 			break;
 		case Client:
 			stopClient();

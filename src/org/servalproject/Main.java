@@ -158,6 +158,13 @@ public class Main extends Activity implements ConnectionStateListener {
 								"bound to service, going to close by direct method call");
 						controlService.stop();
 					}
+
+					if (isCommunicatorBound) {
+						if (clientCommunicator.getCurrentStatus() != Status.Offline) {
+							abortConnection();
+						}
+					}
+
 					stopService(serviceIntent);
 					break;
 				case Off:
@@ -263,7 +270,13 @@ public class Main extends Activity implements ConnectionStateListener {
 							.getCurrentStatus()));
 					switch (clientCommunicator.getCurrentStatus()) {
 					case Offline:
-						tetherView.setImageResource(R.drawable.wifi_tether);
+						// TODO check if the state is up
+						if (app.getState() != State.On) {
+							tetherView
+									.setImageResource(R.drawable.wifi_tether_stopped);
+						} else {
+							tetherView.setImageResource(R.drawable.wifi_tether);
+						}
 						break;
 					case EstablishedManagementConnection:
 					case SearchingManagementConnections:

@@ -880,11 +880,12 @@ public class ChipsetDetection {
 
 		// make sure we have root permission for adhoc support
 		if (chipset.supportedModes.contains(WifiMode.Adhoc)) {
-			if (getAdhocAttemptFile(chipset).exists()) {
-				chipset.supportedModes.remove(WifiMode.Adhoc);
-				Log.v("BatPhone",
-						"Adhoc mode has previously failed and cannot be supported.");
-			} else if (!app.coretask.hasRootPermission()) {
+			// if (getAdhocAttemptFile(chipset).exists()) {
+			// chipset.supportedModes.remove(WifiMode.Adhoc);
+			// Log.v("BatPhone",
+			// "Adhoc mode has previously failed and cannot be supported.");
+			// } else
+			if (!app.coretask.hasRootPermission()) {
 				chipset.supportedModes.remove(WifiMode.Adhoc);
 				Log.v("BatPhone",
 						"Unable to support adhoc mode without root permission");

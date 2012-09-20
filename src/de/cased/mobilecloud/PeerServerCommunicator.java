@@ -31,7 +31,10 @@ public class PeerServerCommunicator extends Service {
 	@Override
 	public void onStart(Intent intent, int startid) {
 		Log.d(TAG, "PeerServerCommunicator starting");
-
+		if (server.isAlive()) {
+			server.shutdownMobileCloudServer();
+			server = new PeerServerWorker();
+		}
 		server.start();
 	}
 
