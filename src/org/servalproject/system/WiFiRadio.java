@@ -29,6 +29,8 @@ import org.servalproject.Instrumentation.Variable;
 import org.servalproject.LogActivity;
 import org.servalproject.ServalBatPhoneApplication;
 import org.servalproject.ServalBatPhoneApplication.State;
+import org.servalproject.batman.Batman;
+import org.servalproject.batman.Routing;
 import org.servalproject.servald.PeerListService;
 import org.servalproject.shell.CommandLog;
 import org.servalproject.shell.Shell;
@@ -86,6 +88,8 @@ public class WiFiRadio {
 	public static final String EXTRA_CONNECTED_SSID = "wifi_ssid";
 
 	private static WiFiRadio wifiRadio;
+
+	private Routing routingImp;
 
 	public static WiFiRadio getWiFiRadio(ServalBatPhoneApplication context,
 			WifiMode interfaceMode) {
@@ -205,6 +209,7 @@ public class WiFiRadio {
 
 	private WiFiRadio(ServalBatPhoneApplication context, WifiMode interfaceMode) {
 		this.app = context;
+		routingImp = new Batman(app.coretask);
 		this.alarmManager = (AlarmManager) app
 				.getSystemService(Context.ALARM_SERVICE);
 
@@ -872,6 +877,14 @@ public class WiFiRadio {
 		case Adhoc:
 			if (shell == null)
 				shell = Shell.startRootShell();
+
+			if (routingImp != null && routingImp.isRunning()) {
+				Log.v("BatPhone", "Stopping routing engine");
+				LogActivity.logMessage("adhoc", "Calling routingImp.stop()",
+						false);
+				this.routingImp.stop();
+			}
+
 			stopAdhoc(shell);
 			break;
 		case Client:
@@ -920,6 +933,11 @@ public class WiFiRadio {
 
 					LogActivity.logErase("adhoc");
 					startAdhoc(shell, ssid);
+					if (!routingImp.isRunning()) {
+						Log.v("BatPhone", "Starting routing engine");
+						routingImp.start();
+					}
+
 				} catch (IOException e) {
 					Log.v("BatPhone",
 									"Start Adhoc failed, attempting to stop again before reporting error");
