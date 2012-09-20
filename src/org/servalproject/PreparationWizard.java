@@ -103,7 +103,7 @@ public class PreparationWizard extends Activity {
 
 		PreparationWizard.instance = this;
 
-		setContentView(R.layout.preparationlayout);
+		setContentView(R.layout.activity_installation);
 
 		app = (ServalBatPhoneApplication) this.getApplication();
 	}
@@ -176,9 +176,9 @@ public class PreparationWizard extends Activity {
 	private void showResult(ImageView imageView, Boolean result) {
 		int imageid;
 		if (result)
-			imageid = R.drawable.jetxee_tick_yellow;
+			imageid = R.drawable.checkmark;
 		else
-			imageid = R.drawable.jetxee_cross_yellow;
+			imageid = R.drawable.cross;
 
 		imageView.setBackgroundResource(0);
 		imageView.setImageResource(imageid);

@@ -1,3 +1,0 @@
-exists /lib/modules/dhd.ko
-exists /etc/rtecdc.bin
-capability Adhoc moment.adhoc.edify moment.off.edify

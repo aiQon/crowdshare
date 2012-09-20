@@ -1,0 +1,19 @@
+port 1194
+proto udp
+dev tun
+ca <CA_CERT>
+cert <USER_CERT>
+key <USER_KEY>
+dh <DH_PARAMS>
+server 10.<IDENTIFIER>.0 255.255.255.0
+topology subnet
+push "redirect-gateway local def1"
+push "dhcp-option DNS 10.<IDENTIFIER>.1"
+comp-lzo
+user nobody
+persist-key
+persist-tun
+status 		<STATUS>  1
+#log         <LOG>
+#log-append  <LOG>
+verb 6

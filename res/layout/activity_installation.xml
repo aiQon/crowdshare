@@ -1,0 +1,157 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical" >
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#292929"
+            android:padding="4dp" >
+
+            <TextView
+                android:id="@+id/textView1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_horizontal"
+                android:text="@string/mobilecloud"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="#ffffff" />
+
+            <ImageView
+                android:id="@+id/imageView1"
+                android:layout_width="80dp"
+                android:layout_height="50dp"
+                android:layout_alignParentLeft="true"
+                android:layout_centerVertical="true"
+                android:src="@drawable/cloud" />
+        </RelativeLayout>
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/linearLayout1"
+        android:background="#ffffff"
+        android:padding="4dp" >
+
+        <TextView
+            android:id="@+id/textView2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/linearLayout1"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="32dp"
+            android:text="Please be patient while we set up your device..." />
+
+        <TextView
+            android:id="@+id/textView3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/textView2"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="29dp"
+            android:text="Unpacking stuff that we need" />
+
+        <ImageView
+            android:id="@+id/starUnpack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/textView3"
+            android:layout_alignLeft="@+id/textView2"
+            android:layout_weight="1"
+            android:maxHeight="20dp"
+            android:minHeight="20dp"
+            android:src="@drawable/checkmark"
+            android:visibility="invisible" />
+
+        <TextView
+            android:id="@+id/textView6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@+id/textView3"
+            android:layout_below="@+id/textView3"
+            android:layout_marginTop="35dp"
+            android:text="Checking for root access" />
+
+        <TextView
+            android:id="@+id/labelChipsetSupported"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@+id/textView6"
+            android:layout_below="@+id/textView6"
+            android:layout_marginTop="35dp"
+            android:text="Trying to drive your Wifi" />
+
+        <ImageView
+            android:id="@+id/starChipsetSupported"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/labelChipsetSupported"
+            android:layout_alignLeft="@+id/starUnpack"
+            android:layout_weight="1"
+            android:src="@drawable/checkmark"
+            android:visibility="invisible" />
+
+        <TextView
+            android:id="@+id/labelChipsetExperimental"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@+id/labelChipsetSupported"
+            android:layout_below="@+id/labelChipsetSupported"
+            android:layout_marginTop="35dp"
+            android:text="Guessing how to drive your WiFi" />
+
+        <ImageView
+            android:id="@+id/starChipsetExperimental"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/labelChipsetExperimental"
+            android:layout_alignLeft="@+id/starChipsetSupported"
+            android:layout_weight="1"
+            android:src="@drawable/checkmark"
+            android:visibility="invisible" />
+
+        <TextView
+            android:id="@+id/textView7"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@+id/labelChipsetExperimental"
+            android:layout_below="@+id/labelChipsetExperimental"
+            android:layout_marginTop="35dp"
+            android:text="Testing if WiFi control works" />
+
+        <ImageView
+            android:id="@+id/starTestChipset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/textView7"
+            android:layout_alignLeft="@+id/starChipsetExperimental"
+            android:layout_weight="1"
+            android:src="@drawable/checkmark"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/starRoot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/textView6"
+            android:layout_alignLeft="@+id/starUnpack"
+            android:layout_weight="1"
+            android:src="@drawable/checkmark"
+            android:visibility="invisible" />
+
+    </RelativeLayout>
+
+</RelativeLayout>

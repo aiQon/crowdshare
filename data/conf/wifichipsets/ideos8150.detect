@@ -1,3 +1,0 @@
-exists /wifi/dhd.ko
-exists /system/wifi/bcm_loadipf.sh
-capability Adhoc ideos8150.adhoc.edify ideos8150.off.edify

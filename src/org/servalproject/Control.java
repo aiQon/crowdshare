@@ -28,9 +28,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences.Editor;
 import android.os.AsyncTask;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import de.cased.mobilecloud.RuntimeConfiguration;
+import de.cased.mobilecloud.SecuritySetupActivity;
 
 /**
  *
@@ -46,6 +49,8 @@ public class Control extends Service {
 	private boolean serviceRunning = false;
 	private SimpleWebServer webServer;
 	private int peerCount = -1;
+	private RuntimeConfiguration config;
+	private static String TAG = "Control";
 
 	public static final String ACTION_RESTART = "org.servalproject.restart";
 	private static Control instance;
@@ -81,6 +86,18 @@ public class Control extends Service {
 			}
 		}
 	};
+
+	public int getPeerCount() {
+		return peerCount;
+	}
+
+	public class LocalControlBinder extends Binder {
+		public Control getService() {
+			// Return this instance of LocalService so clients can call public
+			// methods
+			return Control.this;
+		}
+	}
 
 	private Handler handler = new Handler();
 
@@ -212,7 +229,13 @@ public class Control extends Service {
 		app.setState(State.Starting);
 		try {
 			app.wifiRadio.turnOn();
-
+			if (config.getPreferences().getBoolean(
+					SecuritySetupActivity.ENABLE_MOBILE_CLOUD, false)) {
+				Log.d(TAG, "about to start MobileCloud");
+				config.startMobileCloudServices();
+			} else {
+				Log.d(TAG, "MobileCloud mode not enabled");
+			}
 			app.setState(State.On);
 		} catch (Exception e) {
 			app.setState(State.Off);
@@ -221,7 +244,8 @@ public class Control extends Service {
 		}
 	}
 
-	private synchronized void stopService() {
+	public void stop() {
+		Log.d(TAG, "reached stopService()");
 		app.setState(State.Stopping);
 		try {
 			WifiMode mode = app.wifiRadio.getCurrentMode();
@@ -234,6 +258,7 @@ public class Control extends Service {
 			case Adhoc:
 			case Ap:
 				app.wifiRadio.setWiFiMode(WifiMode.Off);
+				config.stopMobileCloudService();
 				break;
 			}
 			app.wifiRadio.checkAlarm();
@@ -253,6 +278,11 @@ public class Control extends Service {
 		} catch (ServalDFailureException e) {
 			Log.e("BatPhone", "Failed to stop servald: " + e.toString(), e);
 		}
+
+	}
+
+	private synchronized void stopService() {
+		stop();
 	}
 
 	private static class Messages implements ServalDMonitor.Messages {
@@ -434,6 +464,7 @@ public class Control extends Service {
 	public void onCreate() {
 		this.app = (ServalBatPhoneApplication) this.getApplication();
 
+		config = RuntimeConfiguration.getInstance();
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(WiFiRadio.WIFI_MODE_ACTION);
 		registerReceiver(receiver, filter);
@@ -466,5 +497,6 @@ public class Control extends Service {
 	public IBinder onBind(Intent arg0) {
 		return null;
 	}
+
 
 }

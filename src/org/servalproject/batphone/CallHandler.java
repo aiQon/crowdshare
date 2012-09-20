@@ -327,8 +327,12 @@ public class CallHandler {
 	}
 
 	public void dial() {
-		Log.v("CallHandler", "Calling " + remotePeer.sid.abbreviation() + "/"
+		Log.d("CallHandler", "Calling " + remotePeer.sid.abbreviation() + "/"
 				+ did);
+
+		Log.d("CallHandler", "VARIABLES:" + "call ;" +
+				remotePeer.sid.toString() + ";" + " ;" +
+				Identities.getCurrentDid() + "; ;" + did);
 
 		app.servaldMonitor.sendMessageAndLog("call ",
 				remotePeer.sid.toString(), " ",

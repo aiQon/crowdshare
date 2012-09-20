@@ -1,0 +1,81 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white" >
+
+    <ImageView
+        android:id="@+id/imageView1"
+        android:layout_width="wrap_content"
+        android:layout_height="150dip"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="22dp"
+        android:src="@drawable/cloud" />
+
+    <Spinner
+        android:id="@+id/spinner_country_names"
+        android:layout_width="200dip"
+        android:layout_height="40dip"
+        android:layout_below="@+id/imageView1"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/rounded_cornder"
+        android:padding="5dp" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/spinner_country_names"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="18dp"
+        android:text="Enter your phone number" />
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/imageView1"
+        android:layout_centerHorizontal="true"
+        android:text="Choose your country"
+        tools:context=".EnterPhoneNumber" />
+
+    <EditText
+        android:id="@+id/country_code"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView2"
+        android:layout_marginTop="36dp"
+        android:layout_toLeftOf="@+id/phone_number_text"
+        android:ems="10"
+        android:gravity="right"
+        android:padding="10dip"
+        android:text="+49" />
+
+    
+
+    <Button
+        android:id="@+id/done_button"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_alignLeft="@+id/spinner_country_names"
+        android:layout_alignRight="@+id/spinner_country_names"
+        android:layout_below="@+id/country_code"
+        android:layout_marginTop="28dp"
+        android:background="@drawable/rounded_cornder"
+        android:text="Done"
+        android:textColor="#ffffff"
+        android:textStyle="bold" />
+
+
+    <EditText
+        android:id="@+id/phone_number_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/country_code"
+        android:layout_alignBottom="@+id/country_code"
+        android:layout_alignLeft="@+id/textView2"
+        android:ems="10"
+        android:inputType="phone" >
+    </EditText>
+
+</RelativeLayout>

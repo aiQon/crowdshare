@@ -1,3 +1,0 @@
-exists /system/libmodules/bcm4325.ko
-androidversion < 4
-capability Adhoc galaxy.adhoc.edify galaxy.off.edify

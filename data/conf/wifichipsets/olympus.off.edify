@@ -1,1 +1,0 @@
-#module_loaded("dhd") && rmmod("dhd");

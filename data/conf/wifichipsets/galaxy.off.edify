@@ -1,1 +1,0 @@
-module_loaded("bcm4325") && rmmod("bcm4325");

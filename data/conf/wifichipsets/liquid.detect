@@ -1,3 +1,0 @@
-exists /system/etc/wifi/dhd.ko
-exists /etc/wifi/BCM4325.bin
-capability Adhoc liquid.adhoc.edify liquid.off.edify

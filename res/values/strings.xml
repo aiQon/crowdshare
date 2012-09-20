@@ -515,4 +515,11 @@ You must acknowledge that you use this software entirely at your own risk.</stri
 	<string name="system_permission_control_label">Start and Stop the Serval Mesh</string>
 	<string name="system_permission_control_description">Allows an application to request that the Serval Mesh software start or stop</string>
 
+	<string name="mobilecloud">MobileCloud</string>
+	<string name="start">Start</string>
+	<string name="mesh_sms">Mesh SMS</string>
+	<string name="tether">Tether</string>
+	<string name="mesh_call">Mesh Call</string>
+	<string name="secmenutext">Security</string>
+
 </resources>   

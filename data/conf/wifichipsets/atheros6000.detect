@@ -1,3 +1,0 @@
-exists /system/wifi/ar6000.ko
-missing /wifi/dhd.ko
-capability Adhoc atheros6000.adhoc.edify atheros6000.off.edify

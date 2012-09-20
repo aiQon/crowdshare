@@ -1,0 +1,35 @@
+ssl_trust_store = clienttruststore.bks
+ssl_key_store = client.bks
+vpn_server_skeleton = vpn_server.skeleton
+vpn_client_skeleton = vpn_client.skeleton
+vpn_server_config_loc = vpn_server.conf
+ca_cert_loc = ca.crt
+ca_cert_dest_loc = ca_crt
+server_cert_loc = server.crt
+server_cert_dest_loc = server.crt
+private_key_loc = client_private_key.pem
+token_loc = client_cert.pem
+dh_loc = dh.pem
+ssl_trust_store_pw = mobilecloud
+ssl_key_store_pw = mobilecloud
+
+registration_server=94.79.155.22
+registration_port=2222
+
+path_ovpn_bin = /system/xbin/openvpn
+ovpn_status_file = openvpn-status.log
+ovpn_log_file = openvpn.log
+sdcard_loc = /sdcard
+local_temp = /data/local/tmp
+
+management_port = 2222
+management_connections = 1
+
+keep_alive_delay = 10000
+keep_alive_tolerated_delay = 12000
+
+management_connection_retries = 3
+management_connection_delay_between_retries = 10000
+
+ovpn_client_status_file=openvpn_client_status.log
+ovpn_client_log_file=openvpn_client.log

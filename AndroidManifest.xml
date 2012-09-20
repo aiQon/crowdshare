@@ -113,7 +113,9 @@
 		android:name=".ServalBatPhoneApplication">
         
         <activity android:name="PreparationWizard"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Black.NoTitleBar"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.PREPARATION" />
 
@@ -121,6 +123,7 @@
         </activity>
         <activity android:name=".Main"
             android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Black.NoTitleBar"
             >
         <intent-filter>   
             	<action android:name="android.intent.action.MAIN" />
@@ -131,6 +134,11 @@
         <activity android:name=".ui.ShareUsActivity"
             android:screenOrientation="portrait"
             />
+        
+        <activity android:name="de.cased.mobilecloud.SecuritySetupActivity"
+            android:screenOrientation="portrait"
+            />
+        
         
         <activity android:name=".ui.help.HelpActivity"
             android:screenOrientation="portrait"
@@ -219,6 +227,12 @@
 		 
 	    <service android:name=".Control"
 	             android:enabled="true"/>
+	    
+	    
+	    <service android:name="de.cased.mobilecloud.PeerServerCommunicator" />
+	    
+	    <service android:name="de.cased.mobilecloud.PeerClientCommunicator" />
+	    
 	    
 	    <activity android:name=".account.ContactAction"
             android:theme="@android:style/Theme.Dialog"

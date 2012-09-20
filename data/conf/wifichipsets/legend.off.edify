@@ -1,1 +1,0 @@
-module_loaded("sdio") && rmmod("sdio");

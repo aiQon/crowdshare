@@ -1,4 +1,0 @@
-exists /system/lib/modules/wireless.ko
-exists /system/etc/wl/rtecdc.bin
-experimental
-capability Adhoc gt540cm.adhoc.edify gt540cm.off.edify

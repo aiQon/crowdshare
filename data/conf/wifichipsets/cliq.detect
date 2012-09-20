@@ -1,4 +1,0 @@
-exists /system/lib/dhd.ko
-exists /etc/wifi/sdio-g-cdc-reclaim-wme.bin
-capability Adhoc cliq.adhoc.edify cliq.off.edify
-

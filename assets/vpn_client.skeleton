@@ -1,0 +1,17 @@
+client
+dev tun
+proto udp
+remote <REMOTE_IP> 1194
+tls-remote <REMOTE_CN>
+ca <CA_CERT>
+cert <USER_CERT>
+key <USER_KEY>
+auth SHA1
+nobind 
+comp-lzo 
+status 		<STATUS>
+log         <LOG>
+log-append  <LOG>
+persist-key 
+persist-tun 
+verb 6
