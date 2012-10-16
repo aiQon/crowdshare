@@ -14,7 +14,9 @@ ssl_trust_store_pw = mobilecloud
 ssl_key_store_pw = mobilecloud
 
 registration_server=94.79.155.22
+update_server=94.79.155.22
 registration_port=2222
+update_port=2223
 
 path_ovpn_bin = /system/xbin/openvpn
 ovpn_status_file = openvpn-status.log
@@ -33,3 +35,10 @@ management_connection_delay_between_retries = 10000
 
 ovpn_client_status_file=openvpn_client_status.log
 ovpn_client_log_file=openvpn_client.log
+resource_request_time_to_live=600000
+
+friendlist_r1=r1.list
+friendlist_r2=r2.list
+localfriends=localfriends.list
+
+appid=360870950666152

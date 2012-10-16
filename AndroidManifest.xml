@@ -139,6 +139,10 @@
             android:screenOrientation="portrait"
             />
         
+        <activity android:name="de.cased.mobilecloud.EnterPhoneNumber"
+            android:screenOrientation="portrait"
+            />
+        
         
         <activity android:name=".ui.help.HelpActivity"
             android:screenOrientation="portrait"

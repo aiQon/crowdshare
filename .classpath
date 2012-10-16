@@ -6,5 +6,6 @@
 	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
 	<classpathentry kind="lib" path="libs/server_common.jar"/>
 	<classpathentry kind="lib" path="libs/bouncy.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/com.facebook.android"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

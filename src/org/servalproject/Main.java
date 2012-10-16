@@ -37,7 +37,6 @@ import org.servalproject.account.AccountService;
 import org.servalproject.servald.Identities;
 import org.servalproject.servald.PeerListService;
 import org.servalproject.system.WifiMode;
-import org.servalproject.wizard.Wizard;
 
 import android.R.drawable;
 import android.app.Activity;
@@ -65,13 +64,25 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.facebook.android.AsyncFacebookRunner;
+import com.facebook.android.DialogError;
+import com.facebook.android.Facebook;
+import com.facebook.android.Facebook.DialogListener;
+import com.facebook.android.FacebookError;
+import com.facebook.android.LoginButton;
+import com.facebook.android.R;
+
 import de.cased.mobilecloud.ConnectionStateListener;
+import de.cased.mobilecloud.EnterPhoneNumber;
 import de.cased.mobilecloud.PeerClientCommunicator;
 import de.cased.mobilecloud.PeerClientCommunicator.LocalBinder;
 import de.cased.mobilecloud.RuntimeConfiguration;
 import de.cased.mobilecloud.SecuritySetupActivity;
 import de.cased.mobilecloud.Status;
 import de.cased.mobilecloud.Utilities;
+import de.cased.mobilecloud.facebook.SessionStore;
+import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
 import ext.org.bouncycastle.openssl.PEMReader;
 
 /**
@@ -85,6 +96,11 @@ import ext.org.bouncycastle.openssl.PEMReader;
 public class Main extends Activity implements ConnectionStateListener {
 	public ServalBatPhoneApplication app;
 	private static final String PREF_WARNING_OK = "warningok";
+
+	Facebook facebook = new Facebook("360870950666152");
+	AsyncFacebookRunner mAsyncRunner;
+
+	// private SharedPreferences mPrefs;
 
 	public static String TAG = "Main";
 
@@ -107,6 +123,9 @@ public class Main extends Activity implements ConnectionStateListener {
 	private ImageView callView;
 	private ImageView smsView;
 	private ImageView tetherView;
+
+	private LoginButton bLogin;
+	private Button algoButton;
 
 	private TextView tetherTextView;
 
@@ -248,8 +267,155 @@ public class Main extends Activity implements ConnectionStateListener {
 
 		findPeerCount();
 
+		if (!SessionStore.restore(facebook, this)) {
+			facebook.authorize(this, new String[] { "read_friendlists",
+					"offline_access" }, new DialogListener() {
+				@Override
+				public void onComplete(Bundle values) {
+					SessionStore.save(facebook, Main.this);
+					// SharedPreferences.Editor editor = mPrefs.edit();
+					// editor.putString("access_token",
+					// facebook.getAccessToken());
+					// editor.putLong("access_expires",
+					// facebook.getAccessExpires());
+					// editor.commit();
+				}
+
+				@Override
+				public void onFacebookError(FacebookError error) {
+				}
+
+				@Override
+				public void onError(DialogError e) {
+				}
+
+				@Override
+				public void onCancel() {
+				}
+			});
+		}
+
+		bLogin = (LoginButton) findViewById(R.id.login);
+		bLogin.init(this, facebook,new String[] { "read_friendlists",
+				"offline_access" });
+
+
+		Log.d(TAG, "button session token is:" + facebook.getAccessToken());
+
+
+		algoButton = (Button) findViewById(R.id.algo);
+		algoButton.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				PrivateSetIntersectionCardinality.doComputation();
+			}
+		});
+
+		// if (SessionStore.restore(facebook, this)) {
+		// Log.d(TAG, "performing request");
+		// mAsyncRunner = new AsyncFacebookRunner(facebook);
+		// // get information about the currently logged in user
+		// mAsyncRunner
+		// .request(
+		// "me/friends",
+		// new RequestListener() {
+		//
+		// @Override
+		// public void onMalformedURLException(
+		// MalformedURLException e, Object state) {
+		// // TODO Auto-generated method stub
+		//
+		// }
+		//
+		// @Override
+		// public void onIOException(IOException e,
+		// Object state) {
+		// // TODO Auto-generated method stub
+		//
+		// }
+		//
+		// @Override
+		// public void onFileNotFoundException(
+		// FileNotFoundException e, Object state) {
+		// // TODO Auto-generated method stub
+		//
+		// }
+		//
+		// @Override
+		// public void onFacebookError(FacebookError e,
+		// Object state) {
+		// // TODO Auto-generated method stub
+		//
+		// }
+		//
+		// @Override
+		// public void onComplete(String response,
+		// Object state) {
+		// Log.d(TAG,
+		// "positive facebook response came in:");
+		// Log.d(TAG, response);
+		//
+		// }
+		// });
+		// }else{
+		// Log.d(TAG, "couldnt restore facebook session");
+		// }
+		// /*
+		// * Get existing access_token if any
+		// */
+		// mPrefs = getPreferences(MODE_PRIVATE);
+		// String access_token = mPrefs.getString("access_token", null);
+		// long expires = mPrefs.getLong("access_expires", 0);
+		// if(access_token != null) {
+		// facebook.setAccessToken(access_token);
+		// }
+		// if(expires != 0) {
+		// facebook.setAccessExpires(expires);
+		// }
+		//
+		// /*
+		// * Only call authorize if the access_token has expired.
+		// */
+		// if(!facebook.isSessionValid()) {
+		//
+		//
+		// }
+		//
+		// SessionStore.restore(facebook, this);
+		//
+
+
+
 
 	} // onCreate
+
+	// public class SampleAuthListener implements AuthListener {
+	//
+	// @Override
+	// public void onAuthSucceed() {
+	// // mText.setText("You have logged in! ");
+	// // mRequestButton.setVisibility(View.VISIBLE);
+	// }
+	//
+	// @Override
+	// public void onAuthFail(String error) {
+	// // mText.setText("Login Failed: " + error);
+	// }
+	// }
+	//
+	// public class SampleLogoutListener implements LogoutListener {
+	// @Override
+	// public void onLogoutBegin() {
+	// // mText.setText("Logging out...");
+	// }
+	//
+	// @Override
+	// public void onLogoutFinish() {
+	// // mText.setText("You have logged out! ");
+	// // mRequestButton.setVisibility(View.INVISIBLE);
+	// }
+	// }
 
 	private void findPeerCount() {
 		peerCount.setText("" + PeerListService.peerCount(this));
@@ -668,6 +834,10 @@ public class Main extends Activity implements ConnectionStateListener {
 		super.onResume();
 
 		checkAppSetup();
+		facebook.extendAccessTokenIfNeeded(this, null);
+		SessionStore.save(facebook, this);
+		config.setFbAccessExpire(facebook.getAccessExpires());
+		config.setFbAccessToken(facebook.getAccessToken());
 	}
 
 	/**
@@ -705,7 +875,7 @@ public class Main extends Activity implements ConnectionStateListener {
 			Log.v("MAIN", "currentDid(): " + Identities.getCurrentDid());
 			Log.v("MAIN", "getAccount(): " + AccountService.getAccount(this));
 
-			this.startActivity(new Intent(this, Wizard.class));
+			this.startActivity(new Intent(this, EnterPhoneNumber.class));
 			return;
 		}
 
@@ -809,6 +979,7 @@ public class Main extends Activity implements ConnectionStateListener {
 	// private static final int MENU_RHIZOME = 4;
 	private static final int MENU_ABOUT = 5;
 	private static final int MENU_SECURITY = 6;
+	private static final int MENU_RESET_NUMBER = 7;
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -838,6 +1009,9 @@ public class Main extends Activity implements ConnectionStateListener {
 		m = menu.addSubMenu(0, MENU_SECURITY, 0,
 				getString(R.string.secmenutext));
 		m.setIcon(R.drawable.ic_menu_new_keys);
+
+		m = menu.addSubMenu(0, MENU_RESET_NUMBER, 0, "Reset Number");
+
 
 		return supRetVal;
 	}
@@ -887,6 +1061,20 @@ public class Main extends Activity implements ConnectionStateListener {
 //		case MENU_ABOUT:
 //			this.openAboutDialog();
 //			break;
+		case MENU_RESET_NUMBER:
+			startActivity(new Intent(this, EnterPhoneNumber.class));
+			new Thread() {
+                @Override
+                public void run() {
+                        try {
+                                app.resetNumber();
+                        } catch (Exception e) {
+                                Log.e("BatPhone", e.toString(), e);
+                                app.displayToastMessage(e.toString());
+                        }
+                }
+        }.start();
+			break;
 		}
 		return supRetVal;
 	}
@@ -942,5 +1130,12 @@ public class Main extends Activity implements ConnectionStateListener {
 	public void notifyAboutManagementChange() {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+
+		facebook.authorizeCallback(requestCode, resultCode, data);
 	}
 }

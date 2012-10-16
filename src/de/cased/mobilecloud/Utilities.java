@@ -21,8 +21,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.StringTokenizer;
 
+import android.content.Context;
 import android.content.res.AssetManager;
 import android.os.Environment;
 import android.util.Log;
@@ -206,6 +208,8 @@ public class Utilities {
         }
         return null;
     }
+
+
 
     /**
      * searches routing table for ip addresses matching the issued interface name and the issued prefix.
@@ -517,28 +521,57 @@ public class Utilities {
 
 	public static boolean isInRange(String ip, String[] netInfo) {
 
-		StringTokenizer ipTokens = new StringTokenizer(ip, ".");
+
 		StringTokenizer maskTokens = new StringTokenizer(netInfo[1], ".");
 
-		int firstOctet = Integer.parseInt(ipTokens.nextToken())
+		StringTokenizer ipTokens = new StringTokenizer(ip, ".");
+		int ipArray[] = new int[4];
+		ipArray[0] = Integer.parseInt(ipTokens.nextToken())
 				& Integer.parseInt(maskTokens.nextToken());
-		int secondOctet = Integer.parseInt(ipTokens.nextToken())
+		ipArray[1] = Integer.parseInt(ipTokens.nextToken())
 				& Integer.parseInt(maskTokens.nextToken());
-		int thirdOctet = Integer.parseInt(ipTokens.nextToken())
+		ipArray[2] = Integer.parseInt(ipTokens.nextToken())
 				& Integer.parseInt(maskTokens.nextToken());
-		int fourthOctet = Integer.parseInt(ipTokens.nextToken())
+		ipArray[3] = Integer.parseInt(ipTokens.nextToken())
 				& Integer.parseInt(maskTokens.nextToken());
 
-		String networkAddress = firstOctet + "." +
-				secondOctet + "." +
-				thirdOctet + "." +
-				fourthOctet;
+		String networkAddress = ipArray[0] + "." + ipArray[1] + "."
+				+ ipArray[2] + "." + ipArray[3];
 
-		System.out.println("network address:" + networkAddress);
 		return netInfo[0].equals(networkAddress);
 
 	}
 
+	public static int stringIPtoInt(String ip) {
+		StringTokenizer ipTokens = new StringTokenizer(ip, ".");
+		int ipArray[] = new int[4];
+		ipArray[0] = Integer.parseInt(ipTokens.nextToken());
+		ipArray[1] = Integer.parseInt(ipTokens.nextToken());
+		ipArray[2] = Integer.parseInt(ipTokens.nextToken());
+		ipArray[3] = Integer.parseInt(ipTokens.nextToken());
+
+		return (ipArray[0] << 24) + (ipArray[1] << 16) + (ipArray[2] << 8)
+				+ ipArray[3];
+	}
+
+	public static int ipProtocolToInt(String proto) {
+		if (proto.equals("TCP")) {
+			return 6;
+		} else if (proto.equals("UDP")) {
+			return 17;
+		}
+		return -1;
+	}
+
+
+	/**
+	 *
+	 * @param source
+	 *            ifconfig output
+	 * @param device
+	 *            device of interest
+	 * @return
+	 */
 	public static String[] findIPandNetmask(String source, String device) {
 		int deviceIndex = source.indexOf(device);
 		source = source.substring(deviceIndex);
@@ -640,17 +673,84 @@ public class Utilities {
 	public static boolean is3GAvailable(RuntimeConfiguration config) {
 		// TODO check for rmnet0 interface
 		try {
-			boolean want = config.getPreferences().getBoolean(
-					SecuritySetupActivity.ENABLE_TETHERING, false);
 			String interface3G = "rmnet0";
 			String ifconfig = config.getApp().coretask.runCommandForOutput(
 					false,
 					"/system/bin/ifconfig");
-			return (ifconfig.indexOf(interface3G) >= 0) && want;
+			return (ifconfig.indexOf(interface3G) >= 0);
 		} catch (IOException e) {
 			Log.e(TAG, e.getMessage(), e);
 		}
 		return false;
 	}
 
+
+	public static boolean isTargetForTetheringToServer(String ip,
+			RuntimeConfiguration config) {
+
+		if (!isInRange(ip, config.getIpAndNetmaskEth0())
+				&& !isInRange(ip, config.getIpAndNetmaskTun0())) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	public static String intIpToString(int intIp) {
+		int firstOctet = (intIp >> 24) & 0xFF;
+		int secondOctet = (intIp >> 16) & 0xFF;
+		int thirdOctet = (intIp >> 8) & 0xFF;
+		int fourthOctet = intIp & 0xFF;
+		return firstOctet + "." + secondOctet + "." + thirdOctet + "."
+				+ fourthOctet;
+	}
+
+	public static String ipHeaderIdToString(int id) {
+		if (id == 6) {
+			return "tcp";
+		} else if (id == 17) {
+			return "udp";
+		}
+
+		return null;
+	}
+
+	public static void writeToFile(List<String> r1Friends,
+			String r1Destination, RuntimeConfiguration config) {
+		FileOutputStream fos;
+		try {
+			fos = config.getApp().openFileOutput(r1Destination,
+					Context.MODE_PRIVATE);
+			for (String r1Friend : r1Friends) {
+				fos.write(r1Friend.getBytes());
+				fos.write('\n');
+			}
+			fos.close();
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, e.getMessage(), e);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+	}
+
+	public static List<String> readFromFile(String file,
+			RuntimeConfiguration config) {
+		List<String> readLines = new ArrayList<String>();
+		try {
+			// File readFile = new File(config.getApp().getDir("files",
+			// Context.MODE_WORLD_READABLE), file);
+
+
+			BufferedReader reader = toReader(config.getApp()
+					.openFileInput(file));
+			String read = null;
+			while ((read = reader.readLine()) != null) {
+				readLines.add(read);
+			}
+
+		} catch (IOException e) {
+
+		}
+		return readLines;
+	}
 }

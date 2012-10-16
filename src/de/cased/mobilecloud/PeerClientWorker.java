@@ -1,9 +1,7 @@
 package de.cased.mobilecloud;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -13,11 +11,15 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import javax.net.ssl.SSLContext;
+import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 import android.util.Log;
+
+import com.google.protobuf.Message;
+
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.CapabilityItem;
 /**
  * The PeerWorker is the Client of the management protocol. Every device needs
@@ -44,6 +46,7 @@ public class PeerClientWorker extends Thread implements
 	private boolean isConnected = false;
 
 	private PeerClientCommunicator communicator;
+	private ResourceRequestManager rrManager;
 
 
 
@@ -68,6 +71,7 @@ public class PeerClientWorker extends Thread implements
 	private boolean running = true;
 
 	private int neededSimultaneousConections;
+	private ManagementClientHandler currentMainHandler;
 
 	public PeerClientWorker(List<CapabilityItem> requestedCapabilities,
 			PeerClientCommunicator communicator) {
@@ -87,10 +91,13 @@ public class PeerClientWorker extends Thread implements
 				Integer.parseInt(config.getProperties().getProperty(
 						"management_connections"));
 		this.communicator = communicator;
+		rrManager = new ResourceRequestManager(this);
+
 	}
 
 	@Override
 	public void run(){
+		rrManager.start();
 
 		initNeighborListUpdater();
 		while (running) {
@@ -143,6 +150,16 @@ public class PeerClientWorker extends Thread implements
 
 		}
 	}
+
+	public void sendMessageToMainHandler(Message msg) {
+		if(currentMainHandler != null){
+			currentMainHandler.sendMessage(msg);
+		}else{
+			Log.d(TAG, "currentMainHandler is null");
+		}
+	}
+
+
 
 	private boolean selectRouter() {
 		Log.d(TAG, "selectRouter");
@@ -290,16 +307,16 @@ public class PeerClientWorker extends Thread implements
 		}
 	}
 
-	private void subsequentiallyConnect(RouteEntry whichNeighborToPick) {
+	private void subsequentiallyConnect(final RouteEntry whichNeighborToPick) {
 
 		Log.d(TAG, "found a neighbor, establishing management connection");
 		int managementPort = Integer.parseInt(config.getProperties()
 				.getProperty("management_port"));
 
-		SSLContext ssl_context = config.getSslContex();
-		SSLSocketFactory socketFactory = ssl_context.getSocketFactory();
-		try {
 
+		try {
+			SSLSocketFactory socketFactory = config.getSslContex(false)
+					.getSocketFactory();
 			Log.d(TAG, "creating ssl socket");
 
 			// InetAddress inteAddress =
@@ -323,39 +340,30 @@ public class PeerClientWorker extends Thread implements
 			// currentlyConnecting.add(whichNeighborToPick
 			// .getDestination());
 
-			// socket.addHandshakeCompletedListener(new
-			// HandshakeCompletedListener() {
-			//
-			// @Override
-			// public void handshakeCompleted(
-			// HandshakeCompletedEvent event)
-			// {
-			// Log.d(TAG,
-			// "ssl handshake completed>>>>>>>>>>>>>>>>>>>>>><");
-			// // initiateProtocol(socket,
-			// // whichNeighborToPick);
-			// // currentlyConnecting
-			// // .remove(whichNeighborToPick
-			// // .getDestination());
-			// Log.d(TAG, "conenction established");
-			//
-			// }
-			// });
+			socket.addHandshakeCompletedListener(new HandshakeCompletedListener() {
+
+				@Override
+				public void handshakeCompleted(HandshakeCompletedEvent event) {
+					Log.d(TAG, "ssl handshake completed>>>>>>>>>>>>>>>>>>>>>><");
+					// initiateProtocol(socket,
+					// whichNeighborToPick);
+					// currentlyConnecting
+					// .remove(whichNeighborToPick
+					// .getDestination());
+					Log.d(TAG, "conenction established");
+
+				}
+			});
 			socket.setUseClientMode(true);
 			socket.startHandshake();
-			initiateProtocol(socket,
-					whichNeighborToPick);
+			initiateProtocol(socket, whichNeighborToPick);
 
 			// currentlyConnecting.add(whichNeighborToPick.getDestination());
 
-		} catch (UnknownHostException e) {
+		} catch (Exception e) {
 			// currentlyConnecting
 			// .remove(whichNeighborToPick.getDestination());
 			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-			// currentlyConnecting
-			// .remove(whichNeighborToPick.getDestination());
 		}
 
 
@@ -484,6 +492,8 @@ public class PeerClientWorker extends Thread implements
 			this.notifyAll();
 			timer.cancel();
 			timer.purge();
+			// tcpReader.killReader();
+			rrManager.stopTCPdump();
 			for (ManagementClientHandler handler : managementConnections) {
 				handler.halt(true);
 			}
@@ -553,6 +563,7 @@ public class PeerClientWorker extends Thread implements
 		setConnected(true);
 		communicator.setCurrentStatus(Status.Connected);
 		communicator.setGateway(managementClientHandler.getRemoteMeshIP());
+		currentMainHandler = managementClientHandler;
 	}
 
 	public void reportManagementStatusChange() {

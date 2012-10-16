@@ -1,11 +1,20 @@
 package de.cased.mobilecloud;
 
+import org.servalproject.Control;
+import org.servalproject.Main;
 import org.servalproject.R;
+import org.servalproject.account.AccountService;
 
+import android.accounts.Account;
+import android.accounts.AccountAuthenticatorResponse;
+import android.accounts.AccountManager;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AdapterView;
@@ -83,36 +92,73 @@ public class EnterPhoneNumber extends Activity {
 		final String fullNumber = number;
 		done.setEnabled(false);
 
-		// new AsyncTask<Void, Void, Void>() {
-		// @Override
-		// protected Void doInBackground(Void... params) {
-		// try {
-		// config.getApp().setPrimaryNumber(fullNumber,
-		// false);
-		//
-		// Intent serviceIntent = new Intent(
-		// EnterPhoneNumber.this, Control.class);
-		// startService(serviceIntent);
-		//
-		// Intent intent = new Intent(EnterPhoneNumber.this,
-		// Main.class);
-		// intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-		// EnterPhoneNumber.this.startActivity(intent);
-		//
-		// } catch (IllegalArgumentException e) {
-		// config.getApp().displayToastMessage(e.getMessage());
-		// } catch (Exception e) {
-		// Log.e("BatPhone", e.toString(), e);
-		// config.getApp().displayToastMessage(e.toString());
-		// }
-		// return null;
-		// }
-		//
-		// @Override
-		// protected void onPostExecute(Void result) {
-		// done.setEnabled(true);
-		// }
-		// }.execute((Void[]) null);
+		done.setEnabled(false);
+
+		new AsyncTask<Void, Void, Void>() {
+			@Override
+			protected Void doInBackground(Void... params) {
+				try {
+					config.getApp().setPrimaryNumber(
+fullNumber,
+ "", false);
+
+					// create the serval android acount if it doesn't
+					// already exist
+					Account account = AccountService
+							.getAccount(EnterPhoneNumber.this);
+					if (account == null) {
+						account = new Account("Serval Mesh",
+								AccountService.TYPE);
+						AccountManager am = AccountManager
+								.get(EnterPhoneNumber.this);
+
+						if (!am.addAccountExplicitly(account, "", null))
+							throw new IllegalStateException(
+									"Failed to create account");
+
+						Intent ourIntent = EnterPhoneNumber.this.getIntent();
+						if (ourIntent != null && ourIntent.getExtras() != null) {
+							AccountAuthenticatorResponse response = ourIntent
+									.getExtras()
+									.getParcelable(
+											AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE);
+							if (response != null) {
+								Bundle result = new Bundle();
+								result.putString(
+										AccountManager.KEY_ACCOUNT_NAME,
+										account.name);
+								result.putString(
+										AccountManager.KEY_ACCOUNT_TYPE,
+										AccountService.TYPE);
+								response.onResult(result);
+							}
+						}
+					}
+
+					Intent serviceIntent = new Intent(EnterPhoneNumber.this,
+							Control.class);
+					startService(serviceIntent);
+
+					Intent intent = new Intent(EnterPhoneNumber.this,
+							Main.class);
+					intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+					EnterPhoneNumber.this.startActivity(intent);
+
+				} catch (IllegalArgumentException e) {
+					config.getApp().displayToastMessage(e.getMessage());
+				} catch (Exception e) {
+					Log.e("BatPhone", e.toString(), e);
+					config.getApp().displayToastMessage(e.toString());
+				}
+				return null;
+			}
+
+			@Override
+			protected void onPostExecute(Void result) {
+				done.setEnabled(true);
+			}
+		}.execute((Void[]) null);
+		;
 
 	}
 

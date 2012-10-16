@@ -16,22 +16,27 @@ import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceActivity;
 import android.widget.Toast;
+import de.cased.mobilecloud.common.FriendUpdateStateContext;
+import de.cased.mobilecloud.common.RegistrationStateContext;
 
 public class SecuritySetupActivity extends PreferenceActivity {
 
 	RuntimeConfiguration config;
 	Handler handler;
-	RegistrationWorker worker;
+	// RegistrationWorker registrationWorker;
 	Preference delete;
 	Preference register;
+	Preference fbUpdate;
 
 	CheckBoxPreference enableMobileCloud;
 	CheckBoxPreference enableSecurity;
 	CheckBoxPreference enableTethering;
+	CheckBoxPreference enableTetheringFriends;
 
 	public static String ENABLE_MOBILE_CLOUD = "mobilecloud_string";
 	public static String ENABLE_SECURITY = "security_string";
 	public static String ENABLE_TETHERING = "tethering_string";
+	public static String ENABLE_TETHERING_FRIENDS = "tethering_string_friends";
 
 
 
@@ -44,9 +49,11 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		addPreferencesFromResource(R.xml.sec_preferences);
 		delete = findPreference("deletePreference");
 		register = findPreference("registerPreference");
+		fbUpdate = findPreference("fbServerUpdatePreference");
 		enableMobileCloud = (CheckBoxPreference) findPreference("enableMobileCloud");
 		enableSecurity = (CheckBoxPreference) findPreference("enableSecurity");
 		enableTethering = (CheckBoxPreference) findPreference("enableTethering");
+		enableTetheringFriends = (CheckBoxPreference) findPreference("enableTetheringFriends");
 		determineRegistrationState();
 		determineSettings();
 		registerReactions();
@@ -155,14 +162,41 @@ public class SecuritySetupActivity extends PreferenceActivity {
 					@Override
 					public boolean onPreferenceChange(Preference preference,
 							Object newValue) {
-						SharedPreferences.Editor editor = config
-								.getPreferences().edit();
-						editor.putBoolean(ENABLE_TETHERING,
-								(Boolean) newValue);
-						editor.commit();
-						enableTethering.setChecked((Boolean) newValue);
+						boolean value = (Boolean) newValue;
+						enableTetheringAll(value);
+						if (value) {
+							enableTetheringFriends(false);
+							// enableTetheringFriends.setEnabled(false);
+							// } else {
+							// enableTetheringFriends.setEnabled(true);
+						}
 						return true;
 					}
+
+				});
+
+		enableTetheringFriends
+				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+
+					@Override
+					public boolean onPreferenceChange(Preference preference,
+							Object newValue) {
+
+						boolean value = (Boolean) newValue;
+
+						enableTetheringFriends(value);
+
+						if (value) {
+							enableTetheringAll(false);
+							// enableTethering.setEnabled(false);
+							// } else {
+							// enableTethering.setEnabled(true);
+						}
+
+						return true;
+					}
+
+
 				});
 
 
@@ -198,6 +232,50 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			}
 		});
 
+		fbUpdate.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+
+			@Override
+			public boolean onPreferenceClick(Preference preference) {
+				updateFriendList();
+				return true;
+			}
+		});
+
+	}
+
+	private void enableTetheringAll(boolean newValue) {
+		SharedPreferences.Editor editor = config.getPreferences().edit();
+		editor.putBoolean(ENABLE_TETHERING, newValue);
+		editor.commit();
+
+		enableTethering.setChecked(newValue);
+	}
+
+	private void enableTetheringFriends(boolean value) {
+		SharedPreferences.Editor editor = config.getPreferences().edit();
+		editor.putBoolean(ENABLE_TETHERING_FRIENDS, value);
+		editor.commit();
+
+		enableTetheringFriends.setChecked(value);
+	}
+
+	protected void updateFriendList() {
+		try {
+			ProgressDialog dialog = ProgressDialog.show(this,
+					"Performing Update", "Please wait...", true);
+			UpdateWorker update = new UpdateWorker(dialog, handler,
+					new FriendUpdateStateContext());
+			update.start();
+
+			LocalFacebookUpdater localUpdater = new LocalFacebookUpdater(
+					config.getProperty("appid"), this,
+					config.getProperty("localfriends"));
+			localUpdater.start();
+
+		} catch (Exception e) {
+			Toast.makeText(this, e.getMessage(), 2000).show();
+			e.printStackTrace();
+		}
 	}
 
 	private void toggleRegistration() {
@@ -205,11 +283,10 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			ProgressDialog dialog = ProgressDialog.show(this,
 					"Performing Registration",
 					"Please wait...", true);
-			worker = new RegistrationWorker(dialog,
-					handler);
-			worker.start();
-
-			Toast.makeText(this, "Request generated successfully", 2000).show();
+			RegistrationWorker registrationWorker = new RegistrationWorker(
+					dialog, handler,
+					new RegistrationStateContext());
+			registrationWorker.start();
 
 		} catch (Exception e) {
 			Toast.makeText(this, e.getMessage(), 2000).show();
@@ -240,13 +317,13 @@ public class SecuritySetupActivity extends PreferenceActivity {
 	public void onPause() {
 		super.onPause();
 
-		if (worker != null) {
-			worker.cancel();
-
-			// Mark RegistrationWorker for deletion by GC or there will be a
-			// memory leak
-			worker = null;
-		}
+		// if (registrationWorker != null) {
+		// registrationWorker.cancel();
+		//
+		// // Mark RegistrationWorker for deletion by GC or there will be a
+		// // memory leak
+		// registrationWorker = null;
+		// }
 	}
 
 }

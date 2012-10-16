@@ -18,8 +18,23 @@ public class PeerServerCommunicator extends Service {
 	public void onCreate() {
 		Log.d(TAG, "onCreate");
 		config = RuntimeConfiguration.getInstance();
-		config.setSslContex(config.createSSLContext(false));
+		// try {
+		// config.setSslContex(config.createSSLContext(false));
 		server = new PeerServerWorker();
+		// } catch (UnrecoverableKeyException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (KeyManagementException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (KeyStoreException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (NoSuchAlgorithmException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (CertificateException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (IOException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// }
+
 	}
 
 	@Override
@@ -31,7 +46,7 @@ public class PeerServerCommunicator extends Service {
 	@Override
 	public void onStart(Intent intent, int startid) {
 		Log.d(TAG, "PeerServerCommunicator starting");
-		if (server.isAlive()) {
+		if (server != null && server.isAlive()) {
 			server.shutdownMobileCloudServer();
 			server = new PeerServerWorker();
 		}

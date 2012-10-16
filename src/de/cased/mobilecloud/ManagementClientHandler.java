@@ -591,7 +591,7 @@ public class ManagementClientHandler extends Thread{
 
 	}
 
-	private void sendMessage(Message msg) {
+	public void sendMessage(Message msg) {
 		try {
 
 			// ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -686,7 +686,15 @@ public class ManagementClientHandler extends Thread{
 	public void requestVPN() {
 		Log.d(TAG, "requesting VPN");
 		setCurrentStatus(Status.Connecting);
-		sendMessage(VPNRequest.newBuilder().build());
+		// X509Certificate token = config.getToken();
+		VPNRequest.Builder vpnReqBuilder = VPNRequest.newBuilder();
+		// try {
+		// ByteString encodedToken = ByteString.copyFrom(token.getEncoded());
+		// vpnReqBuilder.setCertificate(encodedToken);
+		// } catch (CertificateEncodingException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// }
+		sendMessage(vpnReqBuilder.build());
 
 	}
 

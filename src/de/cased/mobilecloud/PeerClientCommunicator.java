@@ -42,8 +42,21 @@ public class PeerClientCommunicator extends Service {
 			return;
 		}
 
-
-		config.setSslContex(config.createSSLContext(false));
+		// try {
+		// config.setSslContex(config.createSSLContext(false));
+		// } catch (UnrecoverableKeyException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (KeyManagementException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (KeyStoreException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (NoSuchAlgorithmException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (CertificateException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// } catch (IOException e) {
+		// Log.e(TAG, e.getMessage(), e);
+		// }
 	}
 
 	@Override
@@ -71,7 +84,7 @@ public class PeerClientCommunicator extends Service {
 		// if (extras!=null) {
 		// messenger = (Messenger) extras.get(EXTRA_MESSENGER);
 		// }
-
+		config.setInterfaceAddressNetmask();
 		CapabilityItem item = CapabilityItem.INTERNET;
 		ArrayList<CapabilityItem> capabilities = new ArrayList<CapabilityItem>();
 		capabilities.add(item);

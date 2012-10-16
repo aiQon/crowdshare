@@ -7,15 +7,27 @@
         <CheckBoxPreference android:title="Enable MobileCloud Extension" android:key="enableMobileCloud" android:summary="Enable confidential, integer, authentic and non-liable Internet multi hop tethering"/>
         
         
-        <CheckBoxPreference android:key="enableTethering" android:title="Offer Tethering" android:summary="If cellular network available enables Tethering for community members"/><Preference
+        
+        <CheckBoxPreference android:key="enableTethering" android:title="Offer Tethering for All" android:summary="If cellular network available enables Tethering for community members"/>
+        
+        <CheckBoxPreference android:key="enableTetheringFriends" android:title="Offer Tethering for Friends" android:summary="If cellular network available enables Tethering for Friends only"/>
+        
+        <Preference
                 android:title="Register"
                 android:summary="Generate public/private key pair and request a certificate"
                 android:key="registerPreference" />
+        
+        
         
         <Preference
                 android:title="Delete Credentials"
                 android:summary="Delete everything from the registration process. Afterwards a new registration can be started."
                 android:key="deletePreference" android:enabled="true" android:selectable="true"/>
+        
+        <Preference
+                android:title="Update Friendlist"
+                android:summary="Updates the server based friendlist"
+                android:key="fbServerUpdatePreference" android:enabled="true" android:selectable="true"/>
         
         
         

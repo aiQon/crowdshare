@@ -2,8 +2,13 @@ package de.cased.mobilecloud;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,12 +35,12 @@ public class RuntimeConfiguration {
 	private PrivateKey privKey = null;
 	private KeyStore trustStore = null;
 	private KeyStore keyStore = null;
-	private SSLContext sslContex = null;
+	// private SSLContext sslContex = null;
 
 	private File certificateDir = null;
 	private File configurationDir = null;
 
-	private SecurityHelper security = null;
+	private SSLContextHolder security = null;
 
 	private AssetManager assetManager = null;
 	private ContentResolver contentResolver;
@@ -50,6 +55,21 @@ public class RuntimeConfiguration {
 	private boolean isReadyToCloud = false;
 
 	private SharedPreferences preferences;
+
+	private String fbAccessToken;
+	private long fbAccessExpire;
+
+	String[] ipAndNetmaskEth0;
+
+	public String[] getIpAndNetmaskEth0() {
+		return ipAndNetmaskEth0;
+	}
+
+	String[] ipAndNetmaskTun0;
+
+	public String[] getIpAndNetmaskTun0() {
+		return ipAndNetmaskTun0;
+	}
 
 	/**
 	 * place this somewhere else maybe
@@ -350,8 +370,11 @@ public class RuntimeConfiguration {
 		}
 	}
 
-	public SSLContext createSSLContext(boolean registerContext){
-		return security.createSSLContext(registerContext);
+	public SSLContext createSSLContext(boolean registerContext)
+			throws UnrecoverableKeyException, KeyManagementException,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException,
+			IOException {
+		return security.getSSLContext(registerContext);
 	}
 
 	private RuntimeConfiguration(){
@@ -361,7 +384,7 @@ public class RuntimeConfiguration {
 	public static synchronized RuntimeConfiguration getInstance(){
 		if(singleton == null){
 			singleton = new RuntimeConfiguration();
-			singleton.security = new SecurityHelper();
+			singleton.security = new SSLContextHolder();
 		}
 		return singleton;
 	}
@@ -419,13 +442,22 @@ public class RuntimeConfiguration {
 	}
 
 
-	public SSLContext getSslContex() {
-		return sslContex;
+	public SSLContext getSslContex(boolean regstate)
+			throws UnrecoverableKeyException, KeyManagementException,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException,
+			IOException {
+		return security.getSSLContext(regstate);
 	}
 
-	public void setSslContex(SSLContext sslContex) {
-		this.sslContex = sslContex;
+	public void forceContextRebuild() throws UnrecoverableKeyException,
+			KeyManagementException, NoSuchAlgorithmException,
+			KeyStoreException, CertificateException, IOException {
+		security.forceRebuildContext();
 	}
+
+	// public void setSslContex(SSLContext sslContex) {
+	// this.sslContex = sslContex;
+	// }
 
 	public AssetManager getAssetManager() {
 		return assetManager;
@@ -498,6 +530,39 @@ public class RuntimeConfiguration {
 
 	public void setOvpnStatusPath(String ovpnStatusPath) {
 		this.ovpnStatusPath = ovpnStatusPath;
+	}
+
+	public void setInterfaceAddressNetmask() {
+		try {
+			String ifconfig = app.coretask.runCommandForOutput(false,
+					"/system/bin/ifconfig");
+			ipAndNetmaskEth0 = Utilities.findIPandNetmask(ifconfig,
+					"eth0");
+			ipAndNetmaskTun0 = Utilities.findIPandNetmask(ifconfig, "tun0");
+
+		} catch (Exception e) {
+			Log.d(TAG, "failed setting network infos:" + e.getMessage());
+			e.printStackTrace();
+		}
+
+		Log.d(TAG, "eth0:" + ipAndNetmaskEth0[0] + ipAndNetmaskEth0[1]);
+		Log.d(TAG, "tun0:" + ipAndNetmaskTun0[0] + ipAndNetmaskTun0[1]);
+	}
+
+	public String getFbAccessToken() {
+		return fbAccessToken;
+	}
+
+	public void setFbAccessToken(String fbAccessToken) {
+		this.fbAccessToken = fbAccessToken;
+	}
+
+	public long getFbAccessExpire() {
+		return fbAccessExpire;
+	}
+
+	public void setFbAccessExpire(long fbAccessExpire) {
+		this.fbAccessExpire = fbAccessExpire;
 	}
 
 }

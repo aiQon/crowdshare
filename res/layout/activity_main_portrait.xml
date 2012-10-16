@@ -135,6 +135,7 @@
         android:text="@string/mesh_sms"
         android:gravity="center_horizontal"
         android:textColor="#000000" />
+    
 
     <TextView
         android:id="@+id/mainphonenumber"
@@ -144,5 +145,23 @@
         android:layout_centerHorizontal="true"
         android:layout_marginBottom="25dp"
         android:text="" />
+
+    <com.facebook.android.LoginButton
+        android:id="@+id/login"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/mainphonenumber"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="30dp"
+        android:layout_marginBottom="18dp"
+        android:src="@drawable/login_button" />
+
+    <Button
+        android:id="@+id/algo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:text="perform algo" />
 
 </RelativeLayout>

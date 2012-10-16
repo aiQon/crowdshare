@@ -1,6 +1,8 @@
 package de.cased.mobilecloud;
 
 import java.io.IOException;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +40,7 @@ public class PeerServerWorker extends Thread implements
 	public void run(){
 		try {
 			acquireWakeLock();
-			SSLContext ssl_context = config.getSslContex();
+			SSLContext ssl_context = config.getSslContex(false);
 			SSLServerSocketFactory factory =
 					ssl_context.getServerSocketFactory();
 			// SSLServerSocketFactory factory = (SSLServerSocketFactory)
@@ -49,23 +51,60 @@ public class PeerServerWorker extends Thread implements
 			server = (SSLServerSocket) factory.createServerSocket(port); // server
 																			// bound
 			Log.d(TAG, "peer server bound to management port " + port);
+			server.setNeedClientAuth(true);
 
 			while(running){
 				final SSLSocket client = (SSLSocket) server.accept();
+				client.setNeedClientAuth(true);
 				Log.d(TAG, "Accepted connection");
+				final ManagementServerHandler handle = new ManagementServerHandler(
+						client, PeerServerWorker.this);
+				handler.add(handle);
 				client.addHandshakeCompletedListener(new HandshakeCompletedListener() {
 
 					@Override
 					public void handshakeCompleted(HandshakeCompletedEvent event) {
 						// TODO Auto-generated method stub
 
+						X509Certificate peerCert = null;
+						try{
+
+							// X509Certificate[] certs = event
+							// .getPeerCertificateChain();
+
+							Certificate[] certsOld = event
+									.getPeerCertificates();
+
+							for (Certificate cert : certsOld) {
+								java.security.cert.X509Certificate xCert = (java.security.cert.X509Certificate) cert;
+								if (xCert.getSubjectDN().getName()
+										.startsWith("CN=")) {
+									peerCert = xCert;
+								}
+								Log.d(TAG, "got cert for "
+										+ xCert.getSubjectDN().getName());
+							}
+
+							// for (X509Certificate cert : certs) {
+							// if(cert.getSubjectDN().getName().startsWith("CN=")){
+							// peerCert = cert;
+							// }
+							//
+							// Log.d(TAG, "got cert for "
+							// + cert.getSubjectDN().getName());
+							// }
+
+						}catch(Exception ex){
+							Log.d(TAG, "couldnt get cert chain");
+							ex.printStackTrace();
+						}
 						Log.d(TAG, "handshake done>>>>>>>>>>>>>>>>>>>>>>>>");
+						handle.setPeerCertificate(peerCert);
 
 					}
 				});
-				ManagementServerHandler handle = new ManagementServerHandler(
-						client, this);
-				handler.add(handle);
+
+
 				handle.start();
 
 			}
@@ -77,6 +116,8 @@ public class PeerServerWorker extends Thread implements
 			e.printStackTrace();
 		} catch (IOException e) {
 			Log.d(TAG, "Couldnt create server socket on:" + port);
+			e.printStackTrace();
+		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			releaseWakeLock();
