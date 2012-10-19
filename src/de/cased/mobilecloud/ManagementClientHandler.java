@@ -514,13 +514,13 @@ public class ManagementClientHandler extends Thread{
 	private void setDefaultGateway() {
 		String remoteIP = Utilities.getRemoteIP(config);
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 30; i++) {
 			if ((remoteIP = Utilities.getRemoteIP(config)) != null) {
 				break;
 			} else {
 
 				try {
-					Thread.sleep(800);
+					Thread.sleep(850);
 				} catch (InterruptedException e) {
 					Log.e(TAG, e.getMessage(), e);
 				}

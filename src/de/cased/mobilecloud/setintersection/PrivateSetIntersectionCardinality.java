@@ -113,7 +113,7 @@ public class PrivateSetIntersectionCardinality {
     	    Rc = new BigInteger(qLength, rnd);
     	} while (Rc.compareTo(q) >= 0);
 
-		for (int i = 0; i < numberOfClientFriends; i++) {
+		for (int i = 0; i < numberOfServerFriends; i++) {
     		out[i] = H(c[i]).modPow(Rc, p);
     	}
     	return Rc;
@@ -127,7 +127,7 @@ public class PrivateSetIntersectionCardinality {
 		} while (Rs.compareTo(q) >= 0);
 
 		// permute(s); // instead of permuting s we sort ts in the very end
-		for (int i = 0; i < numberOfServerFriends; i++) {
+		for (int i = 0; i < numberOfClientFriends; i++) {
 			ts[i] = Hprime(H(s[i]).modPow(Rs, p));
 		}
 		java.util.Arrays.sort(ts, new ByteComparator());
@@ -141,7 +141,7 @@ public class PrivateSetIntersectionCardinality {
 
 	public void client_round_2(BigInteger[] a, BigInteger Rs,
 			BigInteger[] a_tick) {
-		for (int i = 0; i < numberOfClientFriends; i++) {
+		for (int i = 0; i < numberOfServerFriends; i++) {
     		a_tick[i] = a[i].modPow(Rs, p);
     	}
 		permute(a_tick);
@@ -149,8 +149,8 @@ public class PrivateSetIntersectionCardinality {
 
 	public int server_round_3(BigInteger[] a_tick, byte[][] ts,
 			BigInteger Rc_inv) {
-		byte[][] tc = new byte[numberOfClientFriends][];
-		for (int i = 0; i < numberOfClientFriends; i++) {
+		byte[][] tc = new byte[numberOfServerFriends][];
+		for (int i = 0; i < numberOfServerFriends; i++) {
     		tc[i]=Hprime(a_tick[i].modPow(Rc_inv, p));
     	}
 
@@ -160,7 +160,7 @@ public class PrivateSetIntersectionCardinality {
     	// count how many elements are in common
     	int i=0; int j=0;
     	int found=0;
-		while (i < numberOfClientFriends & j < numberOfServerFriends) {
+		while (i < numberOfServerFriends & j < numberOfClientFriends) {
     		int cmp=myComparator.compare(tc[i],ts[j]);
     		if(cmp==0){
     			i+=1;

@@ -81,6 +81,9 @@ public class ManagementServerHandler extends Thread {
 
 	private List<FacebookEntry> friends;
 
+	private long tsStart;
+	private long tsStop;
+
 	public void setPeerCertificate(X509Certificate peerCert) {
 		this.peerCertificate = peerCert;
 	}
@@ -130,6 +133,12 @@ public class ManagementServerHandler extends Thread {
 									int found = setIntersection.server_round_3(
 											aTick,
 											ts, Rc_inv);
+									tsStop = System.currentTimeMillis();
+
+									long totalTime = tsStop - tsStart;
+									Log.d(TAG, "total time:" + totalTime
+											+ " ms");
+
 									if (found > 0) {
 										sendPositiveResponse();
 									} else {
@@ -516,6 +525,7 @@ public class ManagementServerHandler extends Thread {
 						SecuritySetupActivity.ENABLE_TETHERING_FRIENDS_SET_INTERSECTION,
 						false)) {
 			Log.d(TAG, "start private set intersection procedure");
+			tsStart = System.currentTimeMillis();
 			setIntersection = new PrivateSetIntersectionCardinality();
 			setIntersection.setNumberOfServerFriends(loadFriends());
 			BigInteger[] a = calculateA();
@@ -568,6 +578,7 @@ public class ManagementServerHandler extends Thread {
 
 		for (int i = 0; i < friends.size(); i++) {
 			BigInteger friendInt = new BigInteger(friends.get(i).getId());
+			Log.d(TAG, "added friend " + friends.get(i).getId());
 			c[i] = friendInt.toByteArray();
 		}
 		BigInteger Rc = setIntersection.server_round_1(c, a);
