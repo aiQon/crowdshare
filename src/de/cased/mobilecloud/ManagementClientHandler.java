@@ -7,7 +7,9 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
@@ -18,6 +20,7 @@ import javax.net.ssl.SSLSocket;
 
 import android.util.Log;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Capability;
@@ -29,11 +32,14 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.ConnectionNACK;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Hello;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.HelloResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.KeepAlive;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.NeedPrivateSetIntersection;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRequest;
 import de.cased.mobilecloud.common.PeerCommunicationStateContext;
+import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
 
 public class ManagementClientHandler extends Thread{
 
@@ -60,6 +66,10 @@ public class ManagementClientHandler extends Thread{
 
 	private Status currentStatus;
 
+	private PrivateSetIntersectionCardinality setIntersection;
+	private List<FacebookEntry> friends;
+	private BigInteger Rs;
+	private byte[][] ts;
 
 	/**
 	 * expects finished SSL handshake.
@@ -100,12 +110,177 @@ public class ManagementClientHandler extends Thread{
 	private void buildProtocolReactions() {
 		protocolState = new PeerCommunicationStateContext();
 		analyzeHelloResponse();
+		abalyzeNeedSetIntersection();
 		analyzeCloseManagementChannel();
 		analyzeVPNRefused();
 		analyzeVPNGranted();
 		analyzeCloseVPN();
 		analyzeKeepAlive();
 		finalStateReaction();
+	}
+
+	private void abalyzeNeedSetIntersection() {
+		protocolState.setStateAction(
+						PeerCommunicationStateContext.PRIVATE_SET_INTERSECTION_MIDDLE_STATE,
+						new Runnable() {
+					@Override
+					public void run() {
+								if (latestMessage instanceof NeedPrivateSetIntersection) {
+									setCurrentStatus(Status.Connecting);
+									Log.d(TAG,
+											"received NeedPrivateSetIntersection");
+									loadFriends();
+									if(canProvideFriendInformation()){
+										initOwnSetIntersectionInstance();
+										performClientRound1();
+										NeedPrivateSetIntersection need = (NeedPrivateSetIntersection) latestMessage;
+										int numberOfServerFriends = need
+												.getNumberOfFriends();
+										Log.d(TAG,
+												"number of server friends is "
+														+ numberOfServerFriends);
+										BigInteger[] a_tick = extractAAndCalculateATick(
+												need, numberOfServerFriends);
+										prepareAndSendResponse(a_tick);
+									}else{
+										Log.d(TAG, "dont have a friend list");
+									}
+								}
+					}
+
+							private boolean canProvideFriendInformation() {
+								if (friends.size() > 0) {
+									return true;
+								} else {
+									return false;
+								}
+							}
+
+					private BigInteger[] extractAAndCalculateATick(
+							NeedPrivateSetIntersection need,
+							int numberOfServerFriends) {
+						BigInteger[] a = extractA(need);
+
+								Log.d(TAG, "extracted A");
+								for (BigInteger aPart : a) {
+									Log.d(TAG, aPart.toString());
+								}
+
+						setIntersection
+								.setNumberOfServerFriends(numberOfServerFriends);
+
+								BigInteger[] a_tick = new BigInteger[numberOfServerFriends];
+
+						setIntersection.client_round_2(a, Rs,
+								a_tick);
+
+								Log.d(TAG, "a_tick");
+								for (BigInteger aPart : a_tick) {
+									Log.d(TAG, aPart.toString());
+								}
+						return a_tick;
+					}
+
+					private void prepareAndSendResponse(BigInteger[] a_tick) {
+						PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
+								.newBuilder();
+						setATick(a_tick, responseBuilder);
+						setTs(responseBuilder);
+						PrivateSetIntersectionResponse response = responseBuilder
+								.build();
+						sendMessage(response);
+								Log.d(TAG, "send response");
+					}
+
+					private void setTs(
+							PrivateSetIntersectionResponse.Builder responseBuilder) {
+								Log.d(TAG, "ts content");
+						for (byte[] ts_element : ts) {
+							ByteString bs = ByteString
+									.copyFrom(ts_element);
+									Log.d(TAG, new String(ts_element));
+							responseBuilder.addTs(bs);
+						}
+					}
+
+					private void setATick(
+							BigInteger[] a_tick,
+							PrivateSetIntersectionResponse.Builder responseBuilder) {
+						for (BigInteger bigI : a_tick) {
+							byte[] temp = bigI.toByteArray();
+							ByteString bs = ByteString
+									.copyFrom(temp);
+							responseBuilder.addATick(bs);
+						}
+					}
+
+							private BigInteger[] extractA(
+									NeedPrivateSetIntersection need) {
+						List<ByteString> aEncoded = need.getAList();
+						BigInteger[] a = new BigInteger[aEncoded
+								.size()];
+						for(int i = 0; i < aEncoded.size(); i ++){
+							ByteString bs = aEncoded.get(i);
+							byte[] tempArray = new byte[bs.size()];
+							bs.copyTo(tempArray, 0);
+							a[i] = new BigInteger(tempArray);
+						}
+								return a;
+					}
+				});
+
+	}
+
+	protected void performClientRound1() {
+		ts = new byte[friends.size()][];
+		byte[][] s = new byte[friends.size()][];
+
+		for (int i = 0; i < friends.size(); i++) {
+			BigInteger friendInt = new BigInteger(friends.get(i).getId());
+			s[i] = friendInt.toByteArray();
+			Log.d(TAG, "adding " + friendInt.toString());
+		}
+
+		Rs = setIntersection.client_round_1(s, ts);
+		Log.d(TAG, "calculated Rs:" + Rs.toString());
+	}
+
+	protected void initOwnSetIntersectionInstance() {
+		setIntersection = new PrivateSetIntersectionCardinality();
+		setIntersection.setNumberOfClientFriends(friends.size());
+		Log.d(TAG, "set number of own friends to " + friends.size());
+	}
+
+	// private int loadFriends() {
+	// String r1Destination = config.getProperty("friendlist_r1");
+	// String r2Destination = config.getProperty("friendlist_r2");
+	//
+	// List<String> r1List = Utilities.readFromFile(r1Destination, config);
+	// List<String> r2List = Utilities.readFromFile(r2Destination, config);
+	// for (String r1 : r1List) {
+	// if (r1 != null && !r1.equals(""))
+	// friends.add(new FacebookEntry(r1));
+	// }
+	// for (String r2 : r2List) {
+	// if (r2 != null && !r2.equals(""))
+	// friends.add(new FacebookEntry(r2));
+	// }
+	// return friends.size();
+	// }
+
+	private int loadFriends() {
+		String localfriends = config.getProperty("localfriends");
+
+		friends = new ArrayList<FacebookEntry>();
+		List<String> friendList = Utilities.readFromFile(localfriends, config);
+		for (String r1 : friendList) {
+			if (r1 != null && !r1.equals("")) {
+				Log.d(TAG, "adding friend:" + r1);
+				friends.add(new FacebookEntry(r1));
+
+			}
+		}
+		return friends.size();
 	}
 
 	private void finalStateReaction() {
@@ -579,6 +754,8 @@ public class ManagementClientHandler extends Thread{
 
 			latestMessage = reader.readObject();
 
+			Log.d(TAG, "received "
+					+ latestMessage.getClass().getCanonicalName());
 			protocolState.receiveEvent(latestMessage.getClass().getCanonicalName());
 		} catch (Exception e) {
 			Log.d(TAG, "something went wrong, I quit");

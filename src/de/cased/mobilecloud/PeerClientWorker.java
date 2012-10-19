@@ -97,7 +97,7 @@ public class PeerClientWorker extends Thread implements
 
 	@Override
 	public void run(){
-		rrManager.start();
+		// rrManager.start();
 
 		initNeighborListUpdater();
 		while (running) {
@@ -166,12 +166,15 @@ public class PeerClientWorker extends Thread implements
 		int maxMetric = Integer.MAX_VALUE;
 		ManagementClientHandler bestConnection = null;
 		for (ManagementClientHandler management : managementConnections) {
-			RouteEntry routeInfo = management.getRouteInfo();
-			int currentMetric = routeInfo.getMetric();
-			if(currentMetric < maxMetric){
-				maxMetric = currentMetric;
-				bestConnection = management;
+			if (management.getCurrentStatus() == Status.EstablishedManagementConnection) {
+				RouteEntry routeInfo = management.getRouteInfo();
+				int currentMetric = routeInfo.getMetric();
+				if (currentMetric < maxMetric) {
+					maxMetric = currentMetric;
+					bestConnection = management;
+				}
 			}
+
 		}
 		return setRouteInformation(bestConnection);
 	}

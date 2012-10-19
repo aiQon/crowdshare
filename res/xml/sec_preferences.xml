@@ -6,16 +6,30 @@
         <CheckBoxPreference android:key="enableSecurity" android:summary="Enables confidentiality, integrity, authenticity and non-liability for legacy serval services" android:title="Enable Security" />
         <CheckBoxPreference android:title="Enable MobileCloud Extension" android:key="enableMobileCloud" android:summary="Enable confidential, integer, authentic and non-liable Internet multi hop tethering"/>
         
+        <ListPreference
+                        android:title="Tethering Options"
+                        android:summary="Manage Tethering Setup"
+                        android:key="tetherPref"
+                        android:defaultValue="off"
+                        android:entries="@array/sec_tether_entries"
+                        android:entryValues="@array/sec_tether_values" />
+        
+         <Preference
+                android:title="Update Friendlist"
+                android:summary="Updates the server based friendlist"
+                android:key="fbServerUpdatePreference" android:enabled="true" android:selectable="true"/>
         
         
+       <!--  
         <CheckBoxPreference android:key="enableTethering" android:title="Offer Tethering for All" android:summary="If cellular network available enables Tethering for community members"/>
         
         <CheckBoxPreference android:key="enableTetheringFriends" android:title="Offer Tethering for Friends" android:summary="If cellular network available enables Tethering for Friends only"/>
-        
+         -->
         <Preference
                 android:title="Register"
                 android:summary="Generate public/private key pair and request a certificate"
                 android:key="registerPreference" />
+        
         
         
         
@@ -24,11 +38,7 @@
                 android:summary="Delete everything from the registration process. Afterwards a new registration can be started."
                 android:key="deletePreference" android:enabled="true" android:selectable="true"/>
         
-        <Preference
-                android:title="Update Friendlist"
-                android:summary="Updates the server based friendlist"
-                android:key="fbServerUpdatePreference" android:enabled="true" android:selectable="true"/>
-        
+       
         
         
 

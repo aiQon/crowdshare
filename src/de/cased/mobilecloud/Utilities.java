@@ -747,6 +747,7 @@ public class Utilities {
 			while ((read = reader.readLine()) != null) {
 				readLines.add(read);
 			}
+			reader.close();
 
 		} catch (IOException e) {
 

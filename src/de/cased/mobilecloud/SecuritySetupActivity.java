@@ -11,10 +11,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.CheckBoxPreference;
+import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceActivity;
+import android.util.Log;
 import android.widget.Toast;
 import de.cased.mobilecloud.common.FriendUpdateStateContext;
 import de.cased.mobilecloud.common.RegistrationStateContext;
@@ -22,6 +24,7 @@ import de.cased.mobilecloud.common.RegistrationStateContext;
 public class SecuritySetupActivity extends PreferenceActivity {
 
 	RuntimeConfiguration config;
+	private static String TAG = "SecuritySetupActivity";
 	Handler handler;
 	// RegistrationWorker registrationWorker;
 	Preference delete;
@@ -30,13 +33,16 @@ public class SecuritySetupActivity extends PreferenceActivity {
 
 	CheckBoxPreference enableMobileCloud;
 	CheckBoxPreference enableSecurity;
-	CheckBoxPreference enableTethering;
-	CheckBoxPreference enableTetheringFriends;
+	// CheckBoxPreference enableTethering;
+	// CheckBoxPreference enableTetheringFriends;
+
+	ListPreference tehterPreference;
 
 	public static String ENABLE_MOBILE_CLOUD = "mobilecloud_string";
 	public static String ENABLE_SECURITY = "security_string";
 	public static String ENABLE_TETHERING = "tethering_string";
 	public static String ENABLE_TETHERING_FRIENDS = "tethering_string_friends";
+	public static String ENABLE_TETHERING_FRIENDS_SET_INTERSECTION = "set intersection";
 
 
 
@@ -47,18 +53,26 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		config = RuntimeConfiguration.getInstance();
 
 		addPreferencesFromResource(R.xml.sec_preferences);
-		delete = findPreference("deletePreference");
-		register = findPreference("registerPreference");
-		fbUpdate = findPreference("fbServerUpdatePreference");
-		enableMobileCloud = (CheckBoxPreference) findPreference("enableMobileCloud");
-		enableSecurity = (CheckBoxPreference) findPreference("enableSecurity");
-		enableTethering = (CheckBoxPreference) findPreference("enableTethering");
-		enableTetheringFriends = (CheckBoxPreference) findPreference("enableTetheringFriends");
+		findViews();
 		determineRegistrationState();
 		determineSettings();
 		registerReactions();
 		createHandler();
 
+	}
+
+
+	private void findViews() {
+		delete = findPreference("deletePreference");
+		register = findPreference("registerPreference");
+		fbUpdate = findPreference("fbServerUpdatePreference");
+		enableMobileCloud = (CheckBoxPreference) findPreference("enableMobileCloud");
+		enableSecurity = (CheckBoxPreference) findPreference("enableSecurity");
+		// enableTethering = (CheckBoxPreference)
+		// findPreference("enableTethering");
+		// enableTetheringFriends = (CheckBoxPreference)
+		// findPreference("enableTetheringFriends");
+		tehterPreference = (ListPreference) findPreference("tetherPref");
 	}
 
 
@@ -69,8 +83,20 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		enableSecurity.setChecked(config.getPreferences().getBoolean(
 				ENABLE_SECURITY, false));
 
-		enableTethering.setChecked(config.getPreferences().getBoolean(
-				ENABLE_TETHERING, false));
+		if (config.getPreferences().getBoolean(ENABLE_TETHERING, false)) {
+			tehterPreference.setValue("anonymous");
+		} else if (config.getPreferences().getBoolean(ENABLE_TETHERING_FRIENDS,
+				false)) {
+			tehterPreference.setValue("server-side");
+		} else if (config.getPreferences().getBoolean(
+				ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false)) {
+			tehterPreference.setValue("private-set-intersection");
+		} else {
+			tehterPreference.setValue("off");
+		}
+
+		// enableTethering.setChecked(config.getPreferences().getBoolean(
+		// ENABLE_TETHERING, false));
 	}
 
 	private void determineRegistrationState() {
@@ -156,48 +182,48 @@ public class SecuritySetupActivity extends PreferenceActivity {
 					}
 				});
 
-		enableTethering
-				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+		// enableTethering
+		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+		//
+		// @Override
+		// public boolean onPreferenceChange(Preference preference,
+		// Object newValue) {
+		// boolean value = (Boolean) newValue;
+		// enableTetheringAll(value);
+		// if (value) {
+		// enableTetheringFriends(false);
+		// // enableTetheringFriends.setEnabled(false);
+		// // } else {
+		// // enableTetheringFriends.setEnabled(true);
+		// }
+		// return true;
+		// }
+		//
+		// });
 
-					@Override
-					public boolean onPreferenceChange(Preference preference,
-							Object newValue) {
-						boolean value = (Boolean) newValue;
-						enableTetheringAll(value);
-						if (value) {
-							enableTetheringFriends(false);
-							// enableTetheringFriends.setEnabled(false);
-							// } else {
-							// enableTetheringFriends.setEnabled(true);
-						}
-						return true;
-					}
-
-				});
-
-		enableTetheringFriends
-				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-
-					@Override
-					public boolean onPreferenceChange(Preference preference,
-							Object newValue) {
-
-						boolean value = (Boolean) newValue;
-
-						enableTetheringFriends(value);
-
-						if (value) {
-							enableTetheringAll(false);
-							// enableTethering.setEnabled(false);
-							// } else {
-							// enableTethering.setEnabled(true);
-						}
-
-						return true;
-					}
-
-
-				});
+		// enableTetheringFriends
+		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+		//
+		// @Override
+		// public boolean onPreferenceChange(Preference preference,
+		// Object newValue) {
+		//
+		// boolean value = (Boolean) newValue;
+		//
+		// enableTetheringFriends(value);
+		//
+		// if (value) {
+		// enableTetheringAll(false);
+		// // enableTethering.setEnabled(false);
+		// // } else {
+		// // enableTethering.setEnabled(true);
+		// }
+		//
+		// return true;
+		// }
+		//
+		//
+		// });
 
 
 		register.setOnPreferenceClickListener(new OnPreferenceClickListener() {
@@ -241,22 +267,64 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			}
 		});
 
+		tehterPreference
+				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+
+					@Override
+					public boolean onPreferenceChange(Preference preference,
+							Object newValue) {
+						Log.d(TAG, "current value is:" + newValue.toString());
+						deactivateAllTether();
+						setEditorBool(getKeyFromList((String) newValue), true);
+						return true;
+					}
+				});
+
+
 	}
 
-	private void enableTetheringAll(boolean newValue) {
-		SharedPreferences.Editor editor = config.getPreferences().edit();
-		editor.putBoolean(ENABLE_TETHERING, newValue);
-		editor.commit();
-
-		enableTethering.setChecked(newValue);
+	protected String getKeyFromList(String newValue) {
+		if(newValue.equals("anonymous")){
+			return ENABLE_TETHERING.toString();
+		} else if (newValue.equals("server-side")) {
+			return ENABLE_TETHERING_FRIENDS.toString();
+		} else if (newValue.equals("private-set-intersection")) {
+			return ENABLE_TETHERING_FRIENDS_SET_INTERSECTION.toString();
+		} else {
+			return null;
+		}
 	}
 
-	private void enableTetheringFriends(boolean value) {
-		SharedPreferences.Editor editor = config.getPreferences().edit();
-		editor.putBoolean(ENABLE_TETHERING_FRIENDS, value);
-		editor.commit();
+	// private void enableTetheringAll(boolean newValue) {
+	// SharedPreferences.Editor editor = config.getPreferences().edit();
+	// editor.putBoolean(ENABLE_TETHERING, newValue);
+	// editor.commit();
+	//
+	// enableTethering.setChecked(newValue);
+	// }
 
-		enableTetheringFriends.setChecked(value);
+	// private void enableTetheringFriends(boolean value) {
+	// SharedPreferences.Editor editor = config.getPreferences().edit();
+	// editor.putBoolean(ENABLE_TETHERING_FRIENDS, value);
+	// editor.commit();
+	//
+	// enableTetheringFriends.setChecked(value);
+	// }
+
+	private void setEditorBool(String key, boolean value) {
+		if (key != null) {
+			SharedPreferences.Editor editor = config.getPreferences().edit();
+			editor.putBoolean(key, value);
+			editor.commit();
+		}
+	}
+
+	private void deactivateAllTether() {
+		SharedPreferences.Editor editor = config.getPreferences().edit();
+		editor.putBoolean(ENABLE_TETHERING, false);
+		editor.putBoolean(ENABLE_TETHERING_FRIENDS, false);
+		editor.putBoolean(ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false);
+		editor.commit();
 	}
 
 	protected void updateFriendList() {

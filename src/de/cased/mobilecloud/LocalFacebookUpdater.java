@@ -33,38 +33,26 @@ public class LocalFacebookUpdater extends Thread {
 
 	private AsyncFacebookRunner mAsyncRunner;
 
+	private static int friendInfo = 1;
+	private static int meInfo = 2;
+
+	private int currentInfoStatus = 0;
+
+	private synchronized void registerInfo(int info) {
+		currentInfoStatus += info;
+		Log.d(TAG, "registerInfo raised to:" + currentInfoStatus);
+	}
+
+	private boolean readyToPersist() {
+		return currentInfoStatus == 3 ? true : false;
+	}
+
 	public LocalFacebookUpdater(String appId,
 			Context context, String friendlistLocation) {
 
 		Log.d(TAG, "starting LocalFBUpdater with appId:" + appId);
 
-		// config = RuntimeConfiguration.getInstance();
 		facebookHandle = new Facebook(appId);
-		// facebookHandle.authorize(RuntimeConfiguration.getInstance()
-		// .getHostActivity(),
-		// new String[] { "read_friendlists" }, new DialogListener() {
-		//
-		// @Override
-		// public void onComplete(Bundle values) {
-		// Log.d(TAG, "DialogListener.onComplete()");
-		// }
-		//
-		// @Override
-		// public void onFacebookError(FacebookError e) {
-		// Log.d(TAG, "DialogListener.onFacebookError()");
-		// }
-		//
-		// @Override
-		// public void onError(DialogError e) {
-		// Log.d(TAG, "DialogListener.onError()");
-		// }
-		//
-		// @Override
-		// public void onCancel() {
-		// Log.d(TAG, "DialogListener.onCancel()");
-		// }
-		//
-		// });
 
 		if (SessionStore.restore(facebookHandle, context)) {
 			Log.d(TAG, "FB session restored successfully");
@@ -92,18 +80,23 @@ public class LocalFacebookUpdater extends Thread {
 
 
 	private void persistFriends(List<FacebookEntry> friends) {
-		try {
-			BufferedOutputStream bos = new BufferedOutputStream(
-					context.openFileOutput(friendlistLocation,
-					Context.MODE_PRIVATE));
-			for (FacebookEntry entry : friends) {
-				bos.write(entry.toString().getBytes());
-				bos.write('\n');
+		if (readyToPersist()) {
+			try {
+				BufferedOutputStream bos = new BufferedOutputStream(
+						context.openFileOutput(friendlistLocation,
+								Context.MODE_PRIVATE));
+				for (FacebookEntry entry : friends) {
+					bos.write(entry.toString().getBytes());
+					bos.write('\n');
+				}
+				bos.flush();
+				bos.close();
+				Log.d(TAG, "persisted friends to" + friendlistLocation);
+			} catch (FileNotFoundException e) {
+				Log.e(TAG, e.getMessage(), e);
+			} catch (IOException e) {
+				Log.e(TAG, e.getMessage(), e);
 			}
-		} catch (FileNotFoundException e) {
-			Log.e(TAG, e.getMessage(), e);
-		} catch (IOException e) {
-			Log.e(TAG, e.getMessage(), e);
 		}
 	}
 
@@ -121,7 +114,19 @@ public class LocalFacebookUpdater extends Thread {
 						+ new Date(facebookHandle.getAccessExpires()));
 
 
-		mAsyncRunner.request("me/friends", new RequestListener() {
+		mAsyncRunner.request("me/friends", createFriendRequestListener(result));
+		mAsyncRunner.request("me", createMeRequestListener(result));
+	}
+
+
+	private synchronized void addFriend(List<FacebookEntry> result,
+			FacebookEntry entry) {
+		result.add(entry);
+	}
+
+	private RequestListener createFriendRequestListener(
+			final List<FacebookEntry> result) {
+		return new RequestListener() {
 
 			@Override
 			public void onMalformedURLException(MalformedURLException e,
@@ -151,6 +156,7 @@ public class LocalFacebookUpdater extends Thread {
 
 			@Override
 			public void onComplete(String response, Object state) {
+				Log.d(TAG, "friendreply came in");
 				try {
 					JSONObject main = new JSONObject(response);
 					JSONArray friendsData = main.getJSONArray("data");
@@ -160,16 +166,67 @@ public class LocalFacebookUpdater extends Thread {
 
 						String id = friendsData.getJSONObject(i)
 								.getString("id").toString();
-						result.add(new FacebookEntry(name, id));
+						addFriend(result, new FacebookEntry(name, id));
 
-						Log.d(TAG, "got friend:" + name + ":" + id);
+
 					}
+
+				} catch (JSONException e) {
+					Log.e(TAG, e.getMessage(), e);
+				}
+				registerInfo(friendInfo);
+				persistFriends(result);
+
+			}
+		};
+	}
+
+	private RequestListener createMeRequestListener(
+			final List<FacebookEntry> result) {
+		return new RequestListener() {
+
+			@Override
+			public void onMalformedURLException(MalformedURLException e,
+					Object state) {
+				Log.d(TAG, "onMalformedURLException");
+
+			}
+
+			@Override
+			public void onIOException(IOException e, Object state) {
+				Log.d(TAG, "onIOException");
+
+			}
+
+			@Override
+			public void onFileNotFoundException(FileNotFoundException e,
+					Object state) {
+				Log.d(TAG, "onFileNotFoundException");
+
+			}
+
+			@Override
+			public void onFacebookError(FacebookError e, Object state) {
+				Log.d(TAG, "onFacebookError");
+
+			}
+
+			@Override
+			public void onComplete(String response, Object state) {
+				Log.d(TAG, "me info came in");
+				try {
+					JSONObject main = new JSONObject(response);
+					String name = main.getString("name").toString();
+					String id = main.getString("id").toString();
+					addFriend(result, new FacebookEntry(name, id));
+					registerInfo(meInfo);
+
 				} catch (JSONException e) {
 					Log.e(TAG, e.getMessage(), e);
 				}
 				persistFriends(result);
 
 			}
-		});
+		};
 	}
 }

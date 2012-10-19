@@ -1,0 +1,16 @@
+
+    <resources>
+        <string-array name="sec_tether_entries">
+            <item >Off</item>
+            <item >for All</item>
+            <item >for FB friends (fast)</item>
+            <item >for FB friends (secure)</item>
+        </string-array>
+        
+        <string-array name="sec_tether_values">
+            <item >off</item>
+            <item >anonymous</item>
+            <item >server-side</item>
+            <item >private-set-intersection</item>
+        </string-array>
+    </resources>

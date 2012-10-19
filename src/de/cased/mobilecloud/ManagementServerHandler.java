@@ -1,13 +1,13 @@
 package de.cased.mobilecloud;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.security.cert.CertificateException;
+import java.math.BigInteger;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
@@ -18,6 +18,7 @@ import javax.net.ssl.SSLSocket;
 
 import android.util.Log;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.BatteryState;
@@ -30,12 +31,16 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.ConnectionNACK;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Hello;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.HelloResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.KeepAlive;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.NeedPrivateSetIntersection;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionNACK;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.ResourceRequestMessage;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRequest;
 import de.cased.mobilecloud.common.PeerCommunicationStateContext;
+import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
 import ext.org.bouncycastle.operator.ContentVerifierProvider;
 import ext.org.bouncycastle.operator.OperatorCreationException;
 import ext.org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
@@ -70,6 +75,12 @@ public class ManagementServerHandler extends Thread {
 
 	private X509Certificate peerCertificate;
 
+	private PrivateSetIntersectionCardinality setIntersection;
+	// private BigInteger Rc;
+	private BigInteger Rc_inv;
+
+	private List<FacebookEntry> friends;
+
 	public void setPeerCertificate(X509Certificate peerCert) {
 		this.peerCertificate = peerCert;
 	}
@@ -85,13 +96,95 @@ public class ManagementServerHandler extends Thread {
 	private void buildProtocolReactions() {
 		protocolState = new PeerCommunicationStateContext();
 		analyzeHello();
+		analyzePrivateSetIntersectionResponse();
 		analyzeConnectionNACK();
 		analyzeConnectionACK();
 		analyzeVPNRequest();
 		analyzeCloseVPN();
 		analyzeCloseManagementChannel();
 		analyzeResourceRequest();
+	}
 
+	private void analyzePrivateSetIntersectionResponse() {
+		protocolState
+				.setStateAction(
+						PeerCommunicationStateContext.PRIVATE_SET_INTERSECTION_DONE_STATE,
+						new Runnable() {
+							@Override
+							public void run() {
+								if (latestMessage instanceof PrivateSetIntersectionResponse) {
+									Log.d(TAG,
+											"received PrivateSetIntersectionResponse");
+									PrivateSetIntersectionResponse received = (PrivateSetIntersectionResponse) latestMessage;
+									List<ByteString> aTickList = received
+											.getATickList();
+									List<ByteString> tsList = received
+											.getTsList();
+									setIntersection
+											.setNumberOfClientFriends(tsList
+													.size());
+
+									BigInteger[] aTick = extractATick(aTickList);
+									byte[][] ts = extractTs(tsList);
+
+									int found = setIntersection.server_round_3(
+											aTick,
+											ts, Rc_inv);
+									if (found > 0) {
+										sendPositiveResponse();
+									} else {
+										sendNegativeRespnse();
+									}
+								}
+							}
+
+							private void sendNegativeRespnse() {
+								PrivateSetIntersectionNACK nack = PrivateSetIntersectionNACK
+										.newBuilder().build();
+								sendMessage(nack);
+							}
+
+							private void sendPositiveResponse() {
+								HelloResponse.Builder builder = HelloResponse
+										.newBuilder();
+
+								Capability.Builder capBuilder = Capability
+										.newBuilder();
+								capBuilder
+										.addCapability(CapabilityItem.INTERNET);
+
+								Quota quota = getQuota();
+
+								builder.setCapabilities(capBuilder.build());
+								builder.setQuota(quota);
+								sendMessage(builder.build());
+							}
+
+							private byte[][] extractTs(List<ByteString> tsList) {
+								byte ts[][] = new byte[tsList.size()][];
+								for (int i = 0; i < tsList.size(); i++) {
+									ts[i] = new byte[tsList
+											.get(i).size()];
+									tsList.get(i).copyTo(ts[i], 0);
+								}
+								return ts;
+							}
+
+							private BigInteger[] extractATick(
+									List<ByteString> aTickList) {
+								BigInteger[] aTick = new BigInteger[aTickList
+										.size()];
+								for (int i = 0; i < aTickList.size(); i++) {
+									ByteString extractedBS = aTickList
+											.get(i);
+									byte[] tempHolder = new byte[extractedBS
+											.size()];
+									extractedBS.copyTo(tempHolder, 0);
+									aTick[i] = new BigInteger(tempHolder);
+								}
+								return aTick;
+							}
+						});
 	}
 
 	private class ResourceRequestAnalyzer implements Runnable {
@@ -114,15 +207,6 @@ public class ManagementServerHandler extends Thread {
 					Log.d(TAG,
 							"used cipher suite is:" + session.getCipherSuite());
 
-					// http://stackoverflow.com/questions/9574870/no-peer-certificate-error-in-android-2-3-but-not-in-4
-					// seems android 2.3 does not "see" the certs after
-					// handshake
-					// javax.security.cert.X509Certificate[] certs = session
-					// .getPeerCertificateChain();
-					// Log.d(TAG, "ssl session provides " + certs.length
-					// + " certificates in its chain");
-
-					// if (certs.length > 0) {
 					ContentVerifierProvider contentVerifierProvider = new JcaContentVerifierProviderBuilder()
 							.setProvider("BC").build(
 									peerCertificate.getPublicKey());
@@ -142,16 +226,6 @@ public class ManagementServerHandler extends Thread {
 						// TODO: open iptables, start TimerTask to close them
 						// again and store the ResourceRequest on SD card
 					}
-
-					// } else {
-					// Log.d(TAG,
-					// "this cannot happen, it means the other side did not present any certificates during handshake");
-					// }
-
-
-
-
-
 
 				} catch (IOException e) {
 					Log.e(TAG, e.getMessage(), e);
@@ -303,30 +377,31 @@ public class ManagementServerHandler extends Thread {
 
 	}
 
-	private boolean validate(X509Certificate tempCert)
-			throws CertificateException {
-		X509Certificate signCert = Utilities.loadCertificate(new File(config
-				.getCertificateDir(), config.getProperties().getProperty(
-				"ca_cert_dest_loc")));
-
-		if(!signCert.equals(signCert)){
-	         try
-	         {   //Not your CA's. Check if it has been signed by your CA
-				signCert.verify(signCert.getPublicKey());
-	         }
-	         catch(Exception e){
-	              throw new CertificateException("Certificate not trusted",e);
-	         }
-	    }
-	    //If we end here certificate is trusted. Check if it has expired.
-	     try{
-	    	 signCert.checkValidity();
-	      }
-	      catch(Exception e){
-	            throw new CertificateException("Certificate not trusted. It has expired",e);
-	      }
-		return true;
-	}
+	// private boolean validate(X509Certificate tempCert)
+	// throws CertificateException {
+	// X509Certificate signCert = Utilities.loadCertificate(new File(config
+	// .getCertificateDir(), config.getProperties().getProperty(
+	// "ca_cert_dest_loc")));
+	//
+	// if(!signCert.equals(signCert)){
+	// try
+	// { //Not your CA's. Check if it has been signed by your CA
+	// signCert.verify(signCert.getPublicKey());
+	// }
+	// catch(Exception e){
+	// throw new CertificateException("Certificate not trusted",e);
+	// }
+	// }
+	// //If we end here certificate is trusted. Check if it has expired.
+	// try{
+	// signCert.checkValidity();
+	// }
+	// catch(Exception e){
+	// throw new
+	// CertificateException("Certificate not trusted. It has expired",e);
+	// }
+	// return true;
+	// }
 
 	private void analyzeVPNRequest() {
 		protocolState.setStateAction(
@@ -429,19 +504,77 @@ public class ManagementServerHandler extends Thread {
 
 	private void reactOnHello(Hello msg) {
 		Log.d(TAG, "reacting on hello message");
-		// Capability capa = msg.getCapabilities();
-		Capability intersection = getCapabilityIntersection(msg
-				.getCapabilities());
-		// List<CapabilityItem> cap = msg.getCapabilityList();
-		Quota quota = getQuota();
 
-		HelloResponse.Builder builder = HelloResponse.newBuilder();
-		builder.setCapabilities(intersection);
-		builder.setQuota(quota);
-		sendMessage(builder.build());
+		// Branching here: either its anonymous or server side FB friend list
+		// then just send a hello
+		// Response or if its private set intersection, send a
+		// "NeedPrivateSetIntersection" Signal
+
+		if (config
+				.getPreferences()
+				.getBoolean(
+						SecuritySetupActivity.ENABLE_TETHERING_FRIENDS_SET_INTERSECTION,
+						false)) {
+			Log.d(TAG, "start private set intersection procedure");
+			setIntersection = new PrivateSetIntersectionCardinality();
+			setIntersection.setNumberOfServerFriends(loadFriends());
+			BigInteger[] a = calculateA();
+			Log.d(TAG, "a calculated");
+			NeedPrivateSetIntersection.Builder needBuilder = NeedPrivateSetIntersection
+					.newBuilder();
+			// List<ByteString> aEncoded = new ArrayList<ByteString>();
+			for (BigInteger bigI : a) {
+				byte[] temp = bigI.toByteArray();
+				ByteString bs = ByteString.copyFrom(temp);
+				needBuilder.addA(bs);
+			}
+			needBuilder.setNumberOfFriends(friends.size());
+
+			sendMessage(needBuilder.build());
+
+		} else {
+
+			// Capability capa = msg.getCapabilities();
+			Capability intersection = getCapabilityIntersection(msg
+					.getCapabilities());
+			// List<CapabilityItem> cap = msg.getCapabilityList();
+			Quota quota = getQuota();
+
+			HelloResponse.Builder builder = HelloResponse.newBuilder();
+			builder.setCapabilities(intersection);
+			builder.setQuota(quota);
+			sendMessage(builder.build());
+		}
 	}
 
 
+
+	private int loadFriends() {
+		String localfriends = config.getProperty("localfriends");
+
+		friends = new ArrayList<FacebookEntry>();
+		List<String> friendList = Utilities.readFromFile(localfriends, config);
+		for (String r1 : friendList) {
+			if (r1 != null && !r1.equals("")) {
+				friends.add(new FacebookEntry(r1));
+			}
+		}
+		return friends.size();
+	}
+
+	private BigInteger[] calculateA() {
+		BigInteger[] a = new BigInteger[friends.size()];
+		byte[][] c = new byte[friends.size()][];
+
+		for (int i = 0; i < friends.size(); i++) {
+			BigInteger friendInt = new BigInteger(friends.get(i).getId());
+			c[i] = friendInt.toByteArray();
+		}
+		BigInteger Rc = setIntersection.server_round_1(c, a);
+
+		Rc_inv = setIntersection.server_round_2(Rc);
+		return a;
+	}
 
 	private Quota getQuota() {
 		// TODO implement
@@ -475,8 +608,6 @@ public class ManagementServerHandler extends Thread {
 
 
 	private boolean isFriend() {
-		Log.d(TAG, "checking if requester is friend of r1 or r2");
-
 		String r1Destination = config.getProperty("friendlist_r1");
 		String r2Destination = config.getProperty("friendlist_r2");
 		String subject = peerCertificate.getSubjectDN().getName().substring(3);
