@@ -42,3 +42,5 @@ friendlist_r2=r2.list
 localfriends=localfriends.list
 
 appid=360870950666152
+
+rr_dir=/sdcard/RR

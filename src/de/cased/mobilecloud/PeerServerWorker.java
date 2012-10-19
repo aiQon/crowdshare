@@ -125,7 +125,7 @@ public class PeerServerWorker extends Thread implements
 	}
 
 	private void releaseWakeLock() {
-		if (wl != null) {
+		if (wl != null && wl.isHeld()) {
 			wl.release();
 		}
 
@@ -162,6 +162,7 @@ public class PeerServerWorker extends Thread implements
 
 		} finally {
 			server = null;
+			// releaseWakeLock();
 		}
 	}
 }

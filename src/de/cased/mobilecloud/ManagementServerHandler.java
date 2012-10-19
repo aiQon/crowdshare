@@ -1,5 +1,8 @@
 package de.cased.mobilecloud;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -224,16 +227,39 @@ public class ManagementServerHandler extends Thread {
 					} else {
 						Log.d(TAG,
 								"Resource Request signed correctly, retrieving information");
-						int port = request.getPort();
-						String transportLayer = Utilities
+						final int port = request.getPort();
+						final String transportLayer = Utilities
 								.ipHeaderIdToString(request.getTransportLayer());
-						String ipAddress = Utilities.intIpToString(request
+						final String destinationAddress = Utilities
+								.intIpToString(request
 								.getIP());
 
-						Log.d(TAG, "client requests access to " + ipAddress
-								+ ":" + port + " on " + transportLayer);
 						// TODO: open iptables, start TimerTask to close them
 						// again and store the ResourceRequest on SD card
+						persistRR(request, destinationAddress);
+						final String sourceAddress = getVpnAddress(getRealAddress());
+
+						config.allowMasqueradeFor(sourceAddress,
+								destinationAddress, transportLayer, port + "");
+						new Thread(
+							new Runnable() {
+								@Override
+								public void run() {
+								try {
+									Thread.sleep(Integer.parseInt(config
+											.getProperty("resource_request_time_to_live")));
+									config.removeMasqueradeFor(sourceAddress,
+											destinationAddress, transportLayer,
+											port + "");
+								} catch (NumberFormatException e) {
+									Log.e(TAG, e.getMessage(), e);
+								} catch (InterruptedException e) {
+									Log.e(TAG, e.getMessage(), e);
+								}
+								}
+							}
+						).start();
+
 					}
 
 				} catch (IOException e) {
@@ -247,6 +273,21 @@ public class ManagementServerHandler extends Thread {
 				}
 				latestMessage = null;
 			}
+		}
+
+		private void persistRR(ResourceRequest request, String ipAddress)
+				throws FileNotFoundException, IOException {
+			File rrDir = new File(config.getProperty("rr_dir"),
+ peerCertificate
+					.getSubjectDN().getName().substring(3));
+			rrDir.mkdirs();
+			String filename = System.currentTimeMillis() + "";
+
+			File destinationFile = new File(rrDir, filename);
+			FileOutputStream fos = new FileOutputStream(
+					destinationFile);
+			fos.write(request.getEncoded());
+			fos.close();
 		}
 	}
 
@@ -444,7 +485,7 @@ public class ManagementServerHandler extends Thread {
 								Log.e(TAG, e.getMessage(), e);
 							}
 						}
-						config.allowMasqueradeForIP(vpnAddress);
+				config.allowMasqueradeForIP(vpnAddress);
 				}
 				}).start();
 

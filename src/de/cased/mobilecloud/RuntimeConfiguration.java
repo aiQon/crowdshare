@@ -66,9 +66,14 @@ public class RuntimeConfiguration {
 	}
 
 	String[] ipAndNetmaskTun0;
+	String[] ipAndNetmaskTun1;
 
 	public String[] getIpAndNetmaskTun0() {
 		return ipAndNetmaskTun0;
+	}
+
+	public String[] getIpAndNetmaskTun1() {
+		return ipAndNetmaskTun1;
 	}
 
 	/**
@@ -155,6 +160,31 @@ public class RuntimeConfiguration {
 	public void allowMasqueradeForIP(String ip) {
 		String allowCommand = "iptables -t nat -A POSTROUTING -s "
 				+ ip + " -o rmnet0 -j MASQUERADE";
+		try {
+			getApp().coretask.runRootCommand(allowCommand);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+	}
+
+	public void allowMasqueradeFor(String sourceIP, String destinationIP,
+			String layer4proto, String destinationPort) {
+		String allowCommand = "iptables -t nat -A POSTROUTING -s " + sourceIP
+				+ " -d " + destinationIP + " -p " + layer4proto + " --dport "
+				+ destinationPort
+				+ " -o rmnet0 -j MASQUERADE";
+		try {
+			getApp().coretask.runRootCommand(allowCommand);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+	}
+
+	public void removeMasqueradeFor(String sourceIP, String destinationIP,
+			String layer4proto, String destinationPort) {
+		String allowCommand = "iptables -t nat -D POSTROUTING -s " + sourceIP
+				+ " -d " + destinationIP + " -p " + layer4proto + " --dport "
+				+ destinationPort + " -o rmnet0 -j MASQUERADE";
 		try {
 			getApp().coretask.runRootCommand(allowCommand);
 		} catch (IOException e) {
@@ -532,14 +562,16 @@ public class RuntimeConfiguration {
 		this.ovpnStatusPath = ovpnStatusPath;
 	}
 
-	public void setInterfaceAddressNetmask() {
+	public void setInterfaceAddressNetmask(boolean withTun1) {
 		try {
 			String ifconfig = app.coretask.runCommandForOutput(false,
 					"/system/bin/ifconfig");
 			ipAndNetmaskEth0 = Utilities.findIPandNetmask(ifconfig,
 					"eth0");
 			ipAndNetmaskTun0 = Utilities.findIPandNetmask(ifconfig, "tun0");
-
+			if (withTun1) {
+				ipAndNetmaskTun1 = Utilities.findIPandNetmask(ifconfig, "tun1");
+			}
 		} catch (Exception e) {
 			Log.d(TAG, "failed setting network infos:" + e.getMessage());
 			e.printStackTrace();

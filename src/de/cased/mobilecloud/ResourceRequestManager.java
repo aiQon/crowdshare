@@ -44,19 +44,22 @@ public class ResourceRequestManager extends Thread {
 			ResourceRequest request = generateResourceRequest(entry.getIp(),
 					entry.getPort(),
 					entry.getLayer4());
+
+			Log.d(TAG,
+					"RR for ip:" + entry.getIp() + "; layer4:"
+							+ entry.getLayer4() + "; port:" + entry.getPort());
+
 			try {
 				byte[] encodedRequest = request.getEncoded();
-				Log.d(TAG, "going to send encodedRequest of size:"
-						+ encodedRequest.length);
 
 				ResourceRequestMessage.Builder messageBuilder = ResourceRequestMessage
 						.newBuilder();
 				ByteString payload = ByteString.copyFrom(encodedRequest);
-				Log.d(TAG, "encapsulated its:" + payload.size());
 
 				messageBuilder.setPayload(payload);
 				ResourceRequestMessage message = messageBuilder.build();
 				worker.sendMessageToMainHandler(message);
+				history.add(entry);
 			} catch (IOException e) {
 				Log.e(TAG, e.getMessage(), e);
 			}
@@ -73,7 +76,7 @@ public class ResourceRequestManager extends Thread {
 				// element already in list, check for freshness
 				if (entry.getTimestamp().getTime()
 						+ Long.parseLong(config
-								.getProperty("resource_request_time_to_live")) < System
+								.getProperty("resource_request_time_to_live")) > System
 							.currentTimeMillis()) {
 					// old element is still valid, dont do anything
 					return true;
@@ -124,8 +127,6 @@ public class ResourceRequestManager extends Thread {
 							new Date());
 					addEntry(element);
 
-				} else {
-					// Log.d(TAG, "packet is not going to be tethered");
 				}
 
 			} else {
@@ -217,7 +218,7 @@ public class ResourceRequestManager extends Thread {
 					// }
 					while (is.available() > 0) {
 						String line = is.readLine();
-						Log.d(TAG, line);
+						// Log.d(TAG, line);
 						readTcpLine(line);
 					}
 

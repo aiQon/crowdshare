@@ -97,7 +97,7 @@ public class PeerClientWorker extends Thread implements
 
 	@Override
 	public void run(){
-		// rrManager.start();
+		rrManager.start();
 
 		initNeighborListUpdater();
 		while (running) {

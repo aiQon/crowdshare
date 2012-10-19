@@ -487,6 +487,7 @@ public class ManagementClientHandler extends Thread{
 			startKeepAliveTimer();
 			reportToWorkerThread();
 			setCurrentStatus(Status.Connected);
+			config.setInterfaceAddressNetmask(true);
 		} catch (Exception ex) {
 			Log.d(TAG, "failed to generate client VPN, dying");
 			halt(true);

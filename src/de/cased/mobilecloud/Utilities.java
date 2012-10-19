@@ -689,7 +689,8 @@ public class Utilities {
 			RuntimeConfiguration config) {
 
 		if (!isInRange(ip, config.getIpAndNetmaskEth0())
-				&& !isInRange(ip, config.getIpAndNetmaskTun0())) {
+				&& !isInRange(ip, config.getIpAndNetmaskTun0())
+				&& !isInRange(ip, config.getIpAndNetmaskTun1())) {
 			return true;
 		} else {
 			return false;

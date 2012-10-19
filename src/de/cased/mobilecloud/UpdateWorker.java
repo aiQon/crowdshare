@@ -37,6 +37,7 @@ public class UpdateWorker extends AbstractServerWorker {
 			}
 		} catch (Exception e) {
 			Log.e(TAG, e.getMessage(), e);
+			dialog.dismiss();
 		}
 	}
 

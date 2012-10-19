@@ -84,7 +84,7 @@ public class PeerClientCommunicator extends Service {
 		// if (extras!=null) {
 		// messenger = (Messenger) extras.get(EXTRA_MESSENGER);
 		// }
-		config.setInterfaceAddressNetmask();
+		config.setInterfaceAddressNetmask(false);
 		CapabilityItem item = CapabilityItem.INTERNET;
 		ArrayList<CapabilityItem> capabilities = new ArrayList<CapabilityItem>();
 		capabilities.add(item);
