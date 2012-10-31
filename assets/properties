@@ -40,6 +40,7 @@ resource_request_time_to_live=600000
 friendlist_r1=r1.list
 friendlist_r2=r2.list
 localfriends=localfriends.list
+myInfo=me.entry
 
 appid=360870950666152
 

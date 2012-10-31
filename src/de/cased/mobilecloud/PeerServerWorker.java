@@ -1,6 +1,7 @@
 package de.cased.mobilecloud;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -48,7 +49,11 @@ public class PeerServerWorker extends Thread implements
 			// .getDefault();
 
 			port = Integer.parseInt(config.getProperties().getProperty("management_port"));
-			server = (SSLServerSocket) factory.createServerSocket(port); // server
+			//
+			server = (SSLServerSocket) factory.createServerSocket();
+			server.setReuseAddress(true);
+			InetSocketAddress inetsock = new InetSocketAddress(port);
+			server.bind(inetsock); // server
 																			// bound
 			Log.d(TAG, "peer server bound to management port " + port);
 			server.setNeedClientAuth(true);
@@ -108,14 +113,14 @@ public class PeerServerWorker extends Thread implements
 				handle.start();
 
 			}
-
-			server.close();
+			if (server != null)
+				server.close();
 
 		} catch (NumberFormatException e) {
 			Log.d(TAG, "the config file has a semantic error at 'management_port'");
 			e.printStackTrace();
 		} catch (IOException e) {
-			Log.d(TAG, "Couldnt create server socket on:" + port);
+			Log.d(TAG, "server got killed");
 			e.printStackTrace();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -156,7 +161,12 @@ public class PeerServerWorker extends Thread implements
 		}
 		running = false;
 		try {
+
+			boolean isBound = server.isBound();
+			Log.d(TAG, "server is still bound before close:" + isBound);
 			server.close();
+			isBound = server.isBound();
+			Log.d(TAG, "server is still bound after close:" + isBound);
 
 		} catch (IOException e) {
 

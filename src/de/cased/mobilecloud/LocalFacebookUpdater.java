@@ -29,30 +29,33 @@ public class LocalFacebookUpdater extends Thread {
 	private Facebook facebookHandle;
 	private Context context;
 	private String friendlistLocation;
+	private String myInfoLocation;
 	private static String TAG = "LocalFacebookUpdater";
 
 	private AsyncFacebookRunner mAsyncRunner;
 
-	private static int friendInfo = 1;
-	private static int meInfo = 2;
+	// private static int friendInfo = 1;
+	// private static int meInfo = 2;
+	//
+	// private int currentInfoStatus = 0;
 
-	private int currentInfoStatus = 0;
-
-	private synchronized void registerInfo(int info) {
-		currentInfoStatus += info;
-		Log.d(TAG, "registerInfo raised to:" + currentInfoStatus);
-	}
-
-	private boolean readyToPersist() {
-		return currentInfoStatus == 3 ? true : false;
-	}
+	// private synchronized void registerInfo(int info) {
+	// currentInfoStatus += info;
+	// Log.d(TAG, "registerInfo raised to:" + currentInfoStatus);
+	// }
+	//
+	// private boolean readyToPersist() {
+	// return currentInfoStatus == 3 ? true : false;
+	// }
 
 	public LocalFacebookUpdater(String appId,
-			Context context, String friendlistLocation) {
+ Context context,
+			String friendlistLocation, String myInfoLocation) {
 
 		Log.d(TAG, "starting LocalFBUpdater with appId:" + appId);
 
 		facebookHandle = new Facebook(appId);
+		this.myInfoLocation = myInfoLocation;
 
 		if (SessionStore.restore(facebookHandle, context)) {
 			Log.d(TAG, "FB session restored successfully");
@@ -75,28 +78,41 @@ public class LocalFacebookUpdater extends Thread {
 	public void run() {
 		deleteFriendsList();
 		getAndPersistFriends();
-
 	}
 
+	private void persistMyInfo(FacebookEntry me) {
+		try {
+			BufferedOutputStream bos = new BufferedOutputStream(
+					context.openFileOutput(myInfoLocation,
+							Context.MODE_PRIVATE));
+			bos.write(me.toString().getBytes());
+			bos.write('\n');
+			bos.flush();
+			bos.close();
+			Log.d(TAG, "persisted me to" + myInfoLocation);
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, e.getMessage(), e);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+	}
 
 	private void persistFriends(List<FacebookEntry> friends) {
-		if (readyToPersist()) {
-			try {
-				BufferedOutputStream bos = new BufferedOutputStream(
-						context.openFileOutput(friendlistLocation,
-								Context.MODE_PRIVATE));
-				for (FacebookEntry entry : friends) {
-					bos.write(entry.toString().getBytes());
-					bos.write('\n');
-				}
-				bos.flush();
-				bos.close();
-				Log.d(TAG, "persisted friends to" + friendlistLocation);
-			} catch (FileNotFoundException e) {
-				Log.e(TAG, e.getMessage(), e);
-			} catch (IOException e) {
-				Log.e(TAG, e.getMessage(), e);
+		try {
+			BufferedOutputStream bos = new BufferedOutputStream(
+					context.openFileOutput(friendlistLocation,
+							Context.MODE_PRIVATE));
+			for (FacebookEntry entry : friends) {
+				bos.write(entry.toString().getBytes());
+				bos.write('\n');
 			}
+			bos.flush();
+			bos.close();
+			Log.d(TAG, "persisted friends to" + friendlistLocation);
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, e.getMessage(), e);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
 		}
 	}
 
@@ -174,7 +190,6 @@ public class LocalFacebookUpdater extends Thread {
 				} catch (JSONException e) {
 					Log.e(TAG, e.getMessage(), e);
 				}
-				registerInfo(friendInfo);
 				persistFriends(result);
 
 			}
@@ -219,12 +234,12 @@ public class LocalFacebookUpdater extends Thread {
 					String name = main.getString("name").toString();
 					String id = main.getString("id").toString();
 					addFriend(result, new FacebookEntry(name, id));
-					registerInfo(meInfo);
 
+					FacebookEntry myEntry = new FacebookEntry(name, id);
+					persistMyInfo(myEntry);
 				} catch (JSONException e) {
 					Log.e(TAG, e.getMessage(), e);
 				}
-				persistFriends(result);
 
 			}
 		};

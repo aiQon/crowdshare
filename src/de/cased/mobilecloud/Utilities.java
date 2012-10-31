@@ -521,6 +521,9 @@ public class Utilities {
 
 	public static boolean isInRange(String ip, String[] netInfo) {
 
+		// Log.d(TAG, "checking if " + ip + " is in range of " + netInfo[0] +
+		// "/"
+		// + netInfo[1]);
 
 		StringTokenizer maskTokens = new StringTokenizer(netInfo[1], ".");
 
@@ -691,8 +694,10 @@ public class Utilities {
 		if (!isInRange(ip, config.getIpAndNetmaskEth0())
 				&& !isInRange(ip, config.getIpAndNetmaskTun0())
 				&& !isInRange(ip, config.getIpAndNetmaskTun1())) {
+			// Log.d(TAG, "is not in local range, its for tethering!");
 			return true;
 		} else {
+			// Log.d(TAG, "is not for thethering!");
 			return false;
 		}
 	}

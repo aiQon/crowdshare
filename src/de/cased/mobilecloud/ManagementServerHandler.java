@@ -83,9 +83,12 @@ public class ManagementServerHandler extends Thread {
 	private BigInteger Rc_inv;
 
 	private List<FacebookEntry> friends;
+	private FacebookEntry me;
 
 	private long tsStart;
 	private long tsStop;
+
+	private String vpnAddress;
 
 	public void setPeerCertificate(X509Certificate peerCert) {
 		this.peerCertificate = peerCert;
@@ -126,28 +129,61 @@ public class ManagementServerHandler extends Thread {
 											.getATickList();
 									List<ByteString> tsList = received
 											.getTsList();
+									BigInteger ATICK = extractATICK(received);
 									setIntersection
 											.setNumberOfClientFriends(tsList
 													.size());
 
 									BigInteger[] aTick = extractATick(aTickList);
 									byte[][] ts = extractTs(tsList);
-
+									Boolean[] FOUND = new Boolean[1];
 									int found = setIntersection.server_round_3(
 											aTick,
-											ts, Rc_inv);
+ ts, Rc_inv, ATICK, FOUND);
 									tsStop = System.currentTimeMillis();
 
 									long totalTime = tsStop - tsStart;
 									Log.d(TAG, "total time:" + totalTime
 											+ " ms");
 
-									if (found > 0) {
+									int requiredFoFs = config
+											.getPreferences()
+											.getInt(SecuritySetupActivity.ENABLE_FOF_TETHERING,
+													0);
+
+									Log.d(TAG, "FOUND[0] is " + FOUND[0]);
+
+									if (FOUND[0]
+											&& config
+													.getPreferences()
+													.getBoolean(
+															SecuritySetupActivity.ENABLE_DIRECT_FRIENDS_TETHERING,
+															false)) {
+										Log.d(TAG, "got direct friend");
+										sendPositiveResponse();
+									} else if (requiredFoFs > 0
+											&& found >= requiredFoFs) {
+										Log.d(TAG,
+												"got enough indirect friends");
 										sendPositiveResponse();
 									} else {
+										Log.d(TAG,
+												"dont have enough friends nor a direct friend");
 										sendNegativeRespnse();
 									}
+
 								}
+							}
+
+							private BigInteger extractATICK(
+									PrivateSetIntersectionResponse received) {
+								ByteString ATICKcapsule = received
+										.getATICK();
+								byte[] tempATICK = new byte[ATICKcapsule
+										.size()];
+								ATICKcapsule.copyTo(tempATICK, 0);
+								BigInteger ATICK = new BigInteger(tempATICK);
+								return ATICK;
 							}
 
 							private void sendNegativeRespnse() {
@@ -478,8 +514,11 @@ public class ManagementServerHandler extends Thread {
 				@Override
 				public void run() {
 						String vpnAddress;
-						while ((vpnAddress = getVpnAddress(realAddress)) == null) {
+				int count = 120;
+				while ((vpnAddress = getVpnAddress(realAddress)) == null
+						&& count != 0) {
 							try {
+						count--;
 								Thread.sleep(500);
 							} catch (InterruptedException e) {
 								Log.e(TAG, e.getMessage(), e);
@@ -500,33 +539,37 @@ public class ManagementServerHandler extends Thread {
 
 	private String getVpnAddress(String realAddress) {
 
-		String statusPath = config.getOvpnStatusPath();
-		try {
-			String command = "grep 'ROUTING TABLE' " + statusPath
-					+ " -A 9999 | grep " + realAddress;
+		if (vpnAddress != null) {
+			return vpnAddress;
+		} else {
 
-			Log.d(TAG, "getVpnAddress(" + realAddress + ") with command:");
+			String statusPath = config.getOvpnStatusPath();
+			try {
+				String command = "grep 'ROUTING TABLE' " + statusPath
+						+ " -A 9999 | grep " + realAddress;
 
-			String statusOutput = config.getApp().coretask.runCommandForOutput(
-					false, command);
+				Log.d(TAG, "getVpnAddress(" + realAddress + ") with command:");
 
-			Log.d(TAG, "output:" + statusOutput);
+				String statusOutput = config.getApp().coretask
+						.runCommandForOutput(false, command);
 
-			if (statusOutput.length() > 0) {
-				String vpnAddress = statusOutput.substring(0,
-						statusOutput.indexOf(','));
-				Log.d(TAG, "found VPNAddress:" + vpnAddress);
-				return vpnAddress;
-			} else {
-				return null;
+				Log.d(TAG, "output:" + statusOutput);
+
+				if (statusOutput.length() > 0) {
+					String vpnAddress = statusOutput.substring(0,
+							statusOutput.indexOf(','));
+					Log.d(TAG, "found VPNAddress:" + vpnAddress);
+					this.vpnAddress = vpnAddress;
+					return vpnAddress;
+				} else {
+					return null;
+				}
+
+			} catch (IOException e) {
+				Log.e(TAG, e.getMessage(), e);
 			}
-
-
-
-		} catch (IOException e) {
-			Log.e(TAG, e.getMessage(), e);
+			return null;
 		}
-		return null;
 	}
 
 	private String getRealAddress() {
@@ -566,23 +609,12 @@ public class ManagementServerHandler extends Thread {
 						SecuritySetupActivity.ENABLE_TETHERING_FRIENDS_SET_INTERSECTION,
 						false)) {
 			Log.d(TAG, "start private set intersection procedure");
+			loadMe();
+			loadFriends();
 			tsStart = System.currentTimeMillis();
 			setIntersection = new PrivateSetIntersectionCardinality();
-			setIntersection.setNumberOfServerFriends(loadFriends());
-			BigInteger[] a = calculateA();
-			Log.d(TAG, "a calculated");
-			NeedPrivateSetIntersection.Builder needBuilder = NeedPrivateSetIntersection
-					.newBuilder();
-			// List<ByteString> aEncoded = new ArrayList<ByteString>();
-			for (BigInteger bigI : a) {
-				byte[] temp = bigI.toByteArray();
-				ByteString bs = ByteString.copyFrom(temp);
-				needBuilder.addA(bs);
-			}
-			needBuilder.setNumberOfFriends(friends.size());
-
-			sendMessage(needBuilder.build());
-
+			setIntersection.setNumberOfServerFriends(friends.size());
+			serverInitialStep();
 		} else {
 
 			// Capability capa = msg.getCapabilities();
@@ -599,6 +631,11 @@ public class ManagementServerHandler extends Thread {
 	}
 
 
+	private void loadMe() {
+		String localme = config.getProperty("myInfo");
+		List<String> myInfo = Utilities.readFromFile(localme, config);
+		me = new FacebookEntry(myInfo.get(0));
+	}
 
 	private int loadFriends() {
 		String localfriends = config.getProperty("localfriends");
@@ -613,19 +650,36 @@ public class ManagementServerHandler extends Thread {
 		return friends.size();
 	}
 
-	private BigInteger[] calculateA() {
+	private void serverInitialStep() {
 		BigInteger[] a = new BigInteger[friends.size()];
 		byte[][] c = new byte[friends.size()][];
+		byte[] C = new BigInteger(String.valueOf(me.getId())).toByteArray();
+		BigInteger[] A = new BigInteger[1];
 
 		for (int i = 0; i < friends.size(); i++) {
 			BigInteger friendInt = new BigInteger(friends.get(i).getId());
 			Log.d(TAG, "added friend " + friends.get(i).getId());
 			c[i] = friendInt.toByteArray();
 		}
-		BigInteger Rc = setIntersection.server_round_1(c, a);
+		BigInteger Rc = setIntersection.server_round_1(c, a, C, A);
 
 		Rc_inv = setIntersection.server_round_2(Rc);
-		return a;
+
+		NeedPrivateSetIntersection.Builder needBuilder = NeedPrivateSetIntersection
+				.newBuilder();
+		// List<ByteString> aEncoded = new ArrayList<ByteString>();
+		for (BigInteger bigI : a) {
+			byte[] temp = bigI.toByteArray();
+			ByteString bs = ByteString.copyFrom(temp);
+			needBuilder.addA(bs);
+		}
+
+		ByteString aoCapsule = ByteString.copyFrom(A[0].toByteArray());
+		needBuilder.setA0(aoCapsule);
+
+		needBuilder.setNumberOfFriends(friends.size());
+
+		sendMessage(needBuilder.build());
 	}
 
 	private Quota getQuota() {

@@ -158,8 +158,8 @@ public class RuntimeConfiguration {
 	}
 
 	public void allowMasqueradeForIP(String ip) {
-		String allowCommand = "iptables -t nat -A POSTROUTING -s "
-				+ ip + " -o rmnet0 -j MASQUERADE";
+		String allowCommand = "iptables -t nat -A POSTROUTING -s " + ip
+				+ " -o rmnet0 -j MASQUERADE";
 		try {
 			getApp().coretask.runRootCommand(allowCommand);
 		} catch (IOException e) {
@@ -169,9 +169,12 @@ public class RuntimeConfiguration {
 
 	public void allowMasqueradeFor(String sourceIP, String destinationIP,
 			String layer4proto, String destinationPort) {
+		// String allowCommand = "iptables -t nat -A POSTROUTING -s " + sourceIP
+		// + " -d " + destinationIP + " -p " + layer4proto + " --dport "
+		// + destinationPort
+		// + " -o rmnet0 -j MASQUERADE";
 		String allowCommand = "iptables -t nat -A POSTROUTING -s " + sourceIP
-				+ " -d " + destinationIP + " -p " + layer4proto + " --dport "
-				+ destinationPort
+				+ " -d " + destinationIP + " -p " + layer4proto
 				+ " -o rmnet0 -j MASQUERADE";
 		try {
 			getApp().coretask.runRootCommand(allowCommand);
@@ -182,9 +185,13 @@ public class RuntimeConfiguration {
 
 	public void removeMasqueradeFor(String sourceIP, String destinationIP,
 			String layer4proto, String destinationPort) {
+		// String allowCommand = "iptables -t nat -D POSTROUTING -s " + sourceIP
+		// + " -d " + destinationIP + " -p " + layer4proto + " --dport "
+		// + destinationPort + " -o rmnet0 -j MASQUERADE";
+
 		String allowCommand = "iptables -t nat -D POSTROUTING -s " + sourceIP
-				+ " -d " + destinationIP + " -p " + layer4proto + " --dport "
-				+ destinationPort + " -o rmnet0 -j MASQUERADE";
+				+ " -d " + destinationIP + " -p " + layer4proto
+				+ " -o rmnet0 -j MASQUERADE";
 		try {
 			getApp().coretask.runRootCommand(allowCommand);
 		} catch (IOException e) {
@@ -383,6 +390,7 @@ public class RuntimeConfiguration {
 			Log.d(TAG, "failed to kill Openvpn");
 
 		}
+		Log.d(TAG, "stopping MobileCloud");
 		//stop PeerCommunicator
 		hostActivity.stopService(new Intent(hostActivity,
 				PeerServerCommunicator.class));

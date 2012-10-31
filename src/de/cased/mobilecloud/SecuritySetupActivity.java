@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.CheckBoxPreference;
+import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
@@ -33,16 +34,23 @@ public class SecuritySetupActivity extends PreferenceActivity {
 
 	CheckBoxPreference enableMobileCloud;
 	CheckBoxPreference enableSecurity;
+	CheckBoxPreference enableLiability;
+	CheckBoxPreference enableDirectFriendsTethering;
+	EditTextPreference enableFoFTethering;
 	// CheckBoxPreference enableTethering;
 	// CheckBoxPreference enableTetheringFriends;
 
 	ListPreference tehterPreference;
 
 	public static String ENABLE_MOBILE_CLOUD = "mobilecloud_string";
-	public static String ENABLE_SECURITY = "security_string";
+	// public static String ENABLE_SECURITY = "security_string";
+	public static String ENABLE_LIABILITY = "enableLiability";
 	public static String ENABLE_TETHERING = "tethering_string";
 	public static String ENABLE_TETHERING_FRIENDS = "tethering_string_friends";
 	public static String ENABLE_TETHERING_FRIENDS_SET_INTERSECTION = "set intersection";
+
+	public static String ENABLE_DIRECT_FRIENDS_TETHERING = "enableDirectFriendsTethering";
+	public static String ENABLE_FOF_TETHERING = "enableFoFTethering";
 
 
 
@@ -67,7 +75,11 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		register = findPreference("registerPreference");
 		fbUpdate = findPreference("fbServerUpdatePreference");
 		enableMobileCloud = (CheckBoxPreference) findPreference("enableMobileCloud");
-		enableSecurity = (CheckBoxPreference) findPreference("enableSecurity");
+		enableLiability = (CheckBoxPreference) findPreference("enableLiability");
+		enableDirectFriendsTethering = (CheckBoxPreference) findPreference("enableDirectFriendsTethering");
+		enableFoFTethering = (EditTextPreference) findPreference("enableFoFTethering2");
+		// enableSecurity = (CheckBoxPreference)
+		// findPreference("enableSecurity");
 		// enableTethering = (CheckBoxPreference)
 		// findPreference("enableTethering");
 		// enableTetheringFriends = (CheckBoxPreference)
@@ -80,8 +92,19 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		enableMobileCloud.setChecked(config.getPreferences().getBoolean(
 				ENABLE_MOBILE_CLOUD, false));
 
-		enableSecurity.setChecked(config.getPreferences().getBoolean(
-				ENABLE_SECURITY, false));
+		int friendsNeeded = config.getPreferences().getInt(
+				ENABLE_FOF_TETHERING, 0);
+		enableFoFTethering.setText("" + friendsNeeded);
+
+
+		enableDirectFriendsTethering.setChecked(config.getPreferences()
+				.getBoolean(ENABLE_DIRECT_FRIENDS_TETHERING, false));
+
+		// enableSecurity.setChecked(config.getPreferences().getBoolean(
+		// ENABLE_SECURITY, false));
+
+		enableLiability.setChecked(config.getPreferences().getBoolean(
+				ENABLE_LIABILITY, false));
 
 		if (config.getPreferences().getBoolean(ENABLE_TETHERING, false)) {
 			tehterPreference.setValue("anonymous");
@@ -93,6 +116,17 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			tehterPreference.setValue("private-set-intersection");
 		} else {
 			tehterPreference.setValue("off");
+		}
+
+		if (config.getPreferences().getBoolean(
+				ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false)
+				|| config.getPreferences().getBoolean(ENABLE_TETHERING_FRIENDS,
+						false)) {
+			enableDirectFriendsTethering.setEnabled(true);
+			enableFoFTethering.setEnabled(true);
+		} else {
+			enableDirectFriendsTethering.setEnabled(false);
+			enableFoFTethering.setEnabled(false);
 		}
 
 		// enableTethering.setChecked(config.getPreferences().getBoolean(
@@ -150,20 +184,20 @@ public class SecuritySetupActivity extends PreferenceActivity {
 
 
 
-		enableSecurity
-				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-
-					@Override
-					public boolean onPreferenceChange(Preference preference,
-							Object newValue) {
-						SharedPreferences.Editor editor = config
-								.getPreferences().edit();
-						editor.putBoolean(ENABLE_SECURITY, (Boolean) newValue);
-						editor.commit();
-						enableSecurity.setChecked((Boolean) newValue);
-						return true;
-					}
-				});
+		// enableSecurity
+		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+		//
+		// @Override
+		// public boolean onPreferenceChange(Preference preference,
+		// Object newValue) {
+		// SharedPreferences.Editor editor = config
+		// .getPreferences().edit();
+		// editor.putBoolean(ENABLE_SECURITY, (Boolean) newValue);
+		// editor.commit();
+		// enableSecurity.setChecked((Boolean) newValue);
+		// return true;
+		// }
+		// });
 
 
 		enableMobileCloud
@@ -178,6 +212,60 @@ public class SecuritySetupActivity extends PreferenceActivity {
 										(Boolean) newValue);
 						editor.commit();
 						enableMobileCloud.setChecked((Boolean) newValue);
+						return true;
+					}
+				});
+
+		enableLiability
+				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+
+					@Override
+					public boolean onPreferenceChange(Preference preference,
+							Object newValue) {
+						SharedPreferences.Editor editor = config
+								.getPreferences().edit();
+						editor.putBoolean(ENABLE_LIABILITY, (Boolean) newValue);
+						editor.commit();
+						enableLiability.setChecked((Boolean) newValue);
+						return true;
+					}
+				});
+
+
+		enableDirectFriendsTethering
+				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+
+					@Override
+					public boolean onPreferenceChange(Preference preference,
+							Object newValue) {
+						SharedPreferences.Editor editor = config
+								.getPreferences().edit();
+						editor.putBoolean(ENABLE_DIRECT_FRIENDS_TETHERING,
+								(Boolean) newValue);
+						editor.commit();
+						enableDirectFriendsTethering.setChecked((Boolean) newValue);
+						return true;
+					}
+				});
+
+		enableFoFTethering
+				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+
+					@Override
+					public boolean onPreferenceChange(Preference preference,
+							Object newValue) {
+						SharedPreferences.Editor editor = config
+								.getPreferences().edit();
+						int extracted = 0;
+						try {
+							extracted = Integer.parseInt((String) newValue);
+							editor.putInt(ENABLE_FOF_TETHERING, extracted);
+						} catch (Exception e) {
+							editor.putInt(ENABLE_FOF_TETHERING, 0);
+						}
+
+						editor.commit();
+						enableFoFTethering.setText("" + extracted);
 						return true;
 					}
 				});
@@ -275,12 +363,27 @@ public class SecuritySetupActivity extends PreferenceActivity {
 							Object newValue) {
 						Log.d(TAG, "current value is:" + newValue.toString());
 						deactivateAllTether();
-						setEditorBool(getKeyFromList((String) newValue), true);
+						String keyFromList = getKeyFromList((String) newValue);
+						manageSubmenue(keyFromList);
+						setEditorBool(keyFromList, true);
 						return true;
 					}
 				});
 
 
+	}
+
+	protected void manageSubmenue(String keyFromList) {
+		if (keyFromList != null
+				&& (keyFromList.equals(ENABLE_TETHERING_FRIENDS)
+				|| keyFromList
+						.equals(ENABLE_TETHERING_FRIENDS_SET_INTERSECTION))) {
+			enableDirectFriendsTethering.setEnabled(true);
+			enableFoFTethering.setEnabled(true);
+		} else {
+			enableDirectFriendsTethering.setEnabled(false);
+			enableFoFTethering.setEnabled(false);
+		}
 	}
 
 	protected String getKeyFromList(String newValue) {
@@ -337,7 +440,8 @@ public class SecuritySetupActivity extends PreferenceActivity {
 
 			LocalFacebookUpdater localUpdater = new LocalFacebookUpdater(
 					config.getProperty("appid"), this,
-					config.getProperty("localfriends"));
+					config.getProperty("localfriends"),
+					config.getProperty("myInfo"));
 			localUpdater.start();
 
 		} catch (Exception e) {

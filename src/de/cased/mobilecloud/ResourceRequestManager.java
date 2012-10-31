@@ -40,6 +40,7 @@ public class ResourceRequestManager extends Thread {
 	private PeerClientWorker worker;
 
 	public void addEntry(ResourceRequestHistoryElement entry) {
+		// Log.d(TAG, "read addEntry()");
 		if (!isAlreadyInHistory(entry)) {
 			ResourceRequest request = generateResourceRequest(entry.getIp(),
 					entry.getPort(),
@@ -63,22 +64,27 @@ public class ResourceRequestManager extends Thread {
 			} catch (IOException e) {
 				Log.e(TAG, e.getMessage(), e);
 			}
+		} else {
+			Log.d(TAG, "its already in history");
 		}
 
 
 	}
 
 	private boolean isAlreadyInHistory(ResourceRequestHistoryElement entry) {
+		Log.d(TAG, "its already in history");
 		for (ResourceRequestHistoryElement current : history) {
 			if (current.getIp().equals(entry.getIp())
 					&& current.getLayer4().equals(entry.getLayer4())
 					&& current.getPort() == entry.getPort()) {
 				// element already in list, check for freshness
+				Log.d(TAG, "element already in list, check for freshness");
 				if (entry.getTimestamp().getTime()
 						+ Long.parseLong(config
 								.getProperty("resource_request_time_to_live")) > System
 							.currentTimeMillis()) {
 					// old element is still valid, dont do anything
+					Log.d(TAG, "element is still valid, dont do anything");
 					return true;
 
 				} else {
@@ -113,14 +119,33 @@ public class ResourceRequestManager extends Thread {
 				String intermediateDestination = line.substring(
 						line.indexOf(") ") + 2, line.indexOf(" >"));
 
-				String destinationIP = intermediateDestination.substring(0,
+				String sourceIP = intermediateDestination.substring(0,
 						intermediateDestination.lastIndexOf('.'));
 
-				String destinationPort = intermediateDestination
+				String sourcePort = intermediateDestination
 						.substring(intermediateDestination.lastIndexOf('.') + 1);
 
-				if (Utilities.isTargetForTetheringToServer(destinationIP,
+				int indexOfTag = line.indexOf(">");
+				int startIndex = indexOfTag + 2;
+				int endIndex = line.indexOf(':', indexOfTag);
+				String realDestTemp = line.substring(startIndex,
+						endIndex);
+				String destinationIP = realDestTemp.substring(0,
+						realDestTemp.lastIndexOf('.'));
+
+				String destinationPort = realDestTemp.substring(realDestTemp
+						.lastIndexOf('.') + 1);
+
+				// Log.d(TAG, "check if destination IP is tetherable:"
+				// + destinationIP); // TODO hier das gesamte
+													// paket anzeigen lassen und
+													// auswerten
+
+				if (!destinationIP.startsWith("127")
+						&& Utilities.isTargetForTetheringToServer(
+								destinationIP,
 						config)) {
+					// Log.d(TAG, "yes, its meant for the internet");
 					ResourceRequestHistoryElement element = new ResourceRequestHistoryElement(
 							destinationIP, layer4proto,
 							Integer.parseInt(destinationPort),
@@ -130,13 +155,13 @@ public class ResourceRequestManager extends Thread {
 				}
 
 			} else {
-				Log.d(TAG, "unrecognized layer3 protocol:");
+				Log.d(TAG, "skipping non IP packet");
 				Log.d(TAG, line);
 			}
 
 		} catch (Exception e) {
 			Log.d(TAG, "failed parsing tcpdump");
-			Log.d(TAG, e.getMessage());
+			e.printStackTrace();
 			Log.d(TAG, line);
 		}
 
@@ -218,8 +243,10 @@ public class ResourceRequestManager extends Thread {
 					// }
 					while (is.available() > 0) {
 						String line = is.readLine();
-						// Log.d(TAG, line);
-						readTcpLine(line);
+						if (line != null) {
+							// Log.d(TAG, "read line:" + line);
+							readTcpLine(line);
+						}
 					}
 
 					try {
@@ -229,6 +256,7 @@ public class ResourceRequestManager extends Thread {
 
 				} catch (Exception e) {
 					Log.d(TAG, "dropped in TCPdumpReader's run()");
+					e.printStackTrace();
 					return;
 				}
 			}

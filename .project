@@ -3,6 +3,7 @@
 	<name>batphone</name>
 	<comment></comment>
 	<projects>
+		<project>MobileCloud_common</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

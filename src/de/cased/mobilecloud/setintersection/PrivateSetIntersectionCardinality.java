@@ -106,7 +106,8 @@ public class PrivateSetIntersectionCardinality {
     		a[i]=list.get(i);
     }
 
-	public BigInteger server_round_1(byte[][] c, BigInteger[] out) {
+	public BigInteger server_round_1(byte[][] c, BigInteger[] out, byte[] C,
+			BigInteger[] OUT) {
     	// choose random Rc
     	BigInteger Rc;
     	do {
@@ -116,6 +117,7 @@ public class PrivateSetIntersectionCardinality {
 		for (int i = 0; i < numberOfServerFriends; i++) {
     		out[i] = H(c[i]).modPow(Rc, p);
     	}
+		OUT[0] = H(C).modPow(Rc, p);
     	return Rc;
     }
 
@@ -140,20 +142,23 @@ public class PrivateSetIntersectionCardinality {
     }
 
 	public void client_round_2(BigInteger[] a, BigInteger Rs,
-			BigInteger[] a_tick) {
+			BigInteger[] a_tick, BigInteger A, BigInteger[] A_TICK) {
 		for (int i = 0; i < numberOfServerFriends; i++) {
     		a_tick[i] = a[i].modPow(Rs, p);
     	}
 		permute(a_tick);
+		A_TICK[0] = A.modPow(Rs, p);
     }
 
 	public int server_round_3(BigInteger[] a_tick, byte[][] ts,
-			BigInteger Rc_inv) {
+			BigInteger Rc_inv, BigInteger A_TICK, Boolean[] FOUND_out) {
 		byte[][] tc = new byte[numberOfServerFriends][];
+		byte[] TC;
 		for (int i = 0; i < numberOfServerFriends; i++) {
     		tc[i]=Hprime(a_tick[i].modPow(Rc_inv, p));
     	}
 
+		TC = Hprime(A_TICK.modPow(Rc_inv, p));
     	ByteComparator myComparator = new ByteComparator();
     	java.util.Arrays.sort(tc, myComparator);
 
@@ -174,6 +179,12 @@ public class PrivateSetIntersectionCardinality {
     			j+=1;
     		}
     	}
+		// check if C in s?
+		if (java.util.Arrays.binarySearch(ts, TC, myComparator) > 0) {
+			FOUND_out[0] = true;
+		} else {
+			FOUND_out[0] = false;
+		}
     	return found;
     }
 
@@ -194,6 +205,7 @@ public class PrivateSetIntersectionCardinality {
 																		// inputs
 		byte[][] s = new byte[serverEngine.numberOfClientFriends][]; // Client's
 																		// inputs
+		byte[] C;
 
 		// initialize inputs
 		for (int i = 0; i < serverEngine.numberOfServerFriends; i++) {
@@ -204,6 +216,7 @@ public class PrivateSetIntersectionCardinality {
 			BigInteger clientFriend = new BigInteger(clientIds[i]);
 			s[i] = clientFriend.toByteArray();
 		}
+		C = new BigInteger(String.valueOf(1)).toByteArray();
 
 
 		// myClass.init();
@@ -217,14 +230,15 @@ public class PrivateSetIntersectionCardinality {
 		// ROUND 1 ----------------------------------------------------		// ROUND 1 ----------------------------------------------------------
 		long tc1s = System.currentTimeMillis();
 		BigInteger[] a = new BigInteger[serverEngine.numberOfServerFriends];
-		BigInteger Rc = serverEngine.server_round_1(c, a); // done
+		BigInteger[] A = new BigInteger[1];
+		BigInteger Rc = serverEngine.server_round_1(c, a, C, A); // done
 		long tc1e = System.currentTimeMillis();
 
 		long tc2s = System.currentTimeMillis();
 		BigInteger Rc_inv = serverEngine.server_round_2(Rc); // done
 		long tc2e = System.currentTimeMillis();
 
-		// send "a" and #ofServerFriends
+		// send "a" and #ofServerFriends, and A[0] to client
 
 		long ts1s = System.currentTimeMillis();
 		byte[][] ts = new byte[serverEngine.numberOfClientFriends][];
@@ -236,19 +250,23 @@ public class PrivateSetIntersectionCardinality {
 
 		long ts2s = System.currentTimeMillis();
 		BigInteger[] a_tick = new BigInteger[serverEngine.numberOfServerFriends];
-		serverEngine.client_round_2(a, Rs, a_tick); // done
+		BigInteger[] A_TICK = new BigInteger[1];
+		serverEngine.client_round_2(a, Rs, a_tick, A[0], A_TICK); // done
 		long ts2e = System.currentTimeMillis();
 
-		// TODO: send a_tick and ts to server
+		// TODO: send a_tick, ts, and A_TICK[0] to server
 
 
 		// ROUND 3 ----------------------------------------------------------
 		long tc3s = System.currentTimeMillis();
-		int found = serverEngine.server_round_3(a_tick, ts, Rc_inv);
+		Boolean[] FOUND = new Boolean[1];
+		int found = serverEngine.server_round_3(a_tick, ts, Rc_inv, A_TICK[0],
+				FOUND);
 		long tc3e = System.currentTimeMillis();
 
 
 		System.out.println("Size of intersection: " + found);
+		System.out.println("C in s (direct friends): " + FOUND[0]);
 
 		System.out.println("Server round 1: " + (tc1e - tc1s) + " ms");
 		System.out.println("Client round 1: " + (ts1e - ts1s) + " ms");

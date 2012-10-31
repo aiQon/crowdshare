@@ -33,7 +33,9 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.Hello;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.HelloResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.KeepAlive;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.NeedPrivateSetIntersection;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionNACK;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse.Builder;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
@@ -110,7 +112,8 @@ public class ManagementClientHandler extends Thread{
 	private void buildProtocolReactions() {
 		protocolState = new PeerCommunicationStateContext();
 		analyzeHelloResponse();
-		abalyzeNeedSetIntersection();
+		analyzeNeedSetIntersection();
+		analyzePrivateSetIntersectionNACK();
 		analyzeCloseManagementChannel();
 		analyzeVPNRefused();
 		analyzeVPNGranted();
@@ -119,7 +122,25 @@ public class ManagementClientHandler extends Thread{
 		finalStateReaction();
 	}
 
-	private void abalyzeNeedSetIntersection() {
+	private void analyzePrivateSetIntersectionNACK() {
+		protocolState.setStateAction(
+				PeerCommunicationStateContext.FINISHED_STATE,
+				new Runnable() {
+					@Override
+					public void run() {
+
+						if (latestMessage instanceof PrivateSetIntersectionNACK) {
+							// Why is this not evaluated?
+							Log.d(TAG,
+									"cannot connect to this one, we dont have the proper friend relation");
+							halt(false);
+							latestMessage = null;
+						}
+					}
+				});
+	}
+
+	private void analyzeNeedSetIntersection() {
 		protocolState.setStateAction(
 						PeerCommunicationStateContext.PRIVATE_SET_INTERSECTION_MIDDLE_STATE,
 						new Runnable() {
@@ -139,9 +160,8 @@ public class ManagementClientHandler extends Thread{
 										Log.d(TAG,
 												"number of server friends is "
 														+ numberOfServerFriends);
-										BigInteger[] a_tick = extractAAndCalculateATick(
+										performClientStep(
 												need, numberOfServerFriends);
-										prepareAndSendResponse(a_tick);
 									}else{
 										Log.d(TAG, "dont have a friend list");
 									}
@@ -156,10 +176,11 @@ public class ManagementClientHandler extends Thread{
 								}
 							}
 
-					private BigInteger[] extractAAndCalculateATick(
+							private void performClientStep(
 							NeedPrivateSetIntersection need,
 							int numberOfServerFriends) {
 						BigInteger[] a = extractA(need);
+								BigInteger ao = extractA0(need);
 
 								Log.d(TAG, "extracted A");
 								for (BigInteger aPart : a) {
@@ -170,27 +191,34 @@ public class ManagementClientHandler extends Thread{
 								.setNumberOfServerFriends(numberOfServerFriends);
 
 								BigInteger[] a_tick = new BigInteger[numberOfServerFriends];
-
+								BigInteger[] A_TICK = new BigInteger[1];
 						setIntersection.client_round_2(a, Rs,
-								a_tick);
+ a_tick,
+										ao, A_TICK);
 
 								Log.d(TAG, "a_tick");
 								for (BigInteger aPart : a_tick) {
 									Log.d(TAG, aPart.toString());
 								}
-						return a_tick;
+								PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
+										.newBuilder();
+								setATick(a_tick, responseBuilder);
+								setTs(responseBuilder);
+								setATICK(A_TICK, responseBuilder);
+								PrivateSetIntersectionResponse response = responseBuilder
+										.build();
+								sendMessage(response);
+								Log.d(TAG, "send response");
+
 					}
 
-					private void prepareAndSendResponse(BigInteger[] a_tick) {
-						PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
-								.newBuilder();
-						setATick(a_tick, responseBuilder);
-						setTs(responseBuilder);
-						PrivateSetIntersectionResponse response = responseBuilder
-								.build();
-						sendMessage(response);
-								Log.d(TAG, "send response");
-					}
+
+							private void setATICK(BigInteger[] a_TICK,
+									Builder responseBuilder) {
+								ByteString capsule = ByteString
+										.copyFrom(a_TICK[0].toByteArray());
+								responseBuilder.setATICK(capsule);
+							}
 
 					private void setTs(
 							PrivateSetIntersectionResponse.Builder responseBuilder) {
@@ -226,7 +254,16 @@ public class ManagementClientHandler extends Thread{
 							a[i] = new BigInteger(tempArray);
 						}
 								return a;
+							}
+
+							private BigInteger extractA0(
+									NeedPrivateSetIntersection need) {
+								ByteString aoCapsule = need.getA0();
+								byte[] ao = new byte[aoCapsule.size()];
+								aoCapsule.copyTo(ao, 0);
+								return new BigInteger(ao);
 					}
+
 				});
 
 	}
@@ -755,9 +792,18 @@ public class ManagementClientHandler extends Thread{
 
 			latestMessage = reader.readObject();
 
+			Log.d(TAG, "current state is:"
+					+ protocolState.getState().toString());
 			Log.d(TAG, "received "
 					+ latestMessage.getClass().getCanonicalName());
+
+			if(latestMessage.getClass().getCanonicalName().equals("de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionNACK")){
+				Log.d(TAG, "received the NACK");
+			}
+
 			protocolState.receiveEvent(latestMessage.getClass().getCanonicalName());
+			Log.d(TAG, "current state is:"
+					+ protocolState.getState().toString());
 		} catch (Exception e) {
 			Log.d(TAG, "something went wrong, I quit");
 			e.printStackTrace();
