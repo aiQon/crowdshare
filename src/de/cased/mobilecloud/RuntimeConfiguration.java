@@ -256,6 +256,7 @@ public class RuntimeConfiguration {
 
 		flushFirewall();
 		cleanMasquerade();
+		// blockDesire();
 		// unblockAllForwarding();
 
 	}
@@ -263,6 +264,16 @@ public class RuntimeConfiguration {
 
 	private void flushFirewall() {
 		String flushCommand = "iptables -F";
+		try {
+			getApp().coretask.runRootCommand(flushCommand);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
+		}
+
+	}
+
+	private void blockDesire() {
+		String flushCommand = "iptables -A INPUT -m mac --mac-source 38:E7:D8:10:F5:10 -j DROP";
 		try {
 			getApp().coretask.runRootCommand(flushCommand);
 		} catch (IOException e) {
