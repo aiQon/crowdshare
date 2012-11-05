@@ -43,3 +43,34 @@ include $(LOCAL_PATH)/adhoc-edify/Android.mk
 
 # Build oslec echo canceller
 include $(LOCAL_PATH)/oslec-jni/Android.mk
+
+
+
+#build libipq
+
+include $(CLEAR_VARS)
+
+LOCAL_C_INCLUDES:= \
+	$(LOCAL_PATH)/include/ \
+	$(KERNEL_HEADERS)
+
+LOCAL_SRC_FILES:= \
+	libipq/libipq.c
+
+LOCAL_MODULE_TAGS:=
+LOCAL_MODULE:=libipq-static
+include $(BUILD_STATIC_LIBRARY)
+
+#ipqserver
+include $(CLEAR_VARS)
+
+LOCAL_C_INCLUDES:= \
+	$(LOCAL_PATH)/include/ \
+	$(KERNEL_HEADERS)
+
+LOCAL_SRC_FILES:= \
+	ipqserver/server.c
+
+LOCAL_STATIC_LIBRARIES := libipq-static
+LOCAL_MODULE:=ipqserver
+include $(BUILD_EXECUTABLE)

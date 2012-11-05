@@ -37,6 +37,7 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersect
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse.Builder;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.ResourceRequestGrantMessage;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRequest;
@@ -120,6 +121,22 @@ public class ManagementClientHandler extends Thread{
 		analyzeCloseVPN();
 		analyzeKeepAlive();
 		finalStateReaction();
+		analyzeRRGrant();
+	}
+
+	private void analyzeRRGrant() {
+		protocolState.setStateAction(
+				PeerCommunicationStateContext.OPEN_VPN_CHANNEL_STATE,
+				new Runnable() {
+					@Override
+					public void run() {
+
+						if (latestMessage instanceof ResourceRequestGrantMessage) {
+							ResourceRequestGrantMessage message = (ResourceRequestGrantMessage) latestMessage;
+							backreference.verdict(message.getId());
+						}
+					}
+				});
 	}
 
 	private void analyzePrivateSetIntersectionNACK() {

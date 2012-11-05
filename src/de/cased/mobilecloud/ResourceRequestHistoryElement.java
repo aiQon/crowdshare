@@ -7,13 +7,15 @@ public class ResourceRequestHistoryElement {
 	private String layer4;
 	private int port;
 	private Date timestamp;
+	private long packetId;
 
 	public ResourceRequestHistoryElement(String ip, String layer4, int port,
-			Date timestamp) {
+			Date timestamp, long packetId) {
 		this.ip = ip;
 		this.layer4 = layer4;
 		this.port = port;
 		this.timestamp = timestamp;
+		this.packetId = packetId;
 	}
 
 	public String getIp() {
@@ -32,4 +34,7 @@ public class ResourceRequestHistoryElement {
 		return timestamp;
 	}
 
+	public long getPacketId() {
+		return packetId;
+	}
 }

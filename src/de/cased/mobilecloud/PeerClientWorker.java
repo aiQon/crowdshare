@@ -91,7 +91,12 @@ public class PeerClientWorker extends Thread implements
 				Integer.parseInt(config.getProperties().getProperty(
 						"management_connections"));
 		this.communicator = communicator;
-		rrManager = new ResourceRequestManager(this);
+		try {
+			rrManager = new ResourceRequestManager(this);
+		} catch (NoIpqModuleException e) {
+			Log.e(TAG, e.getMessage(), e);
+			e.printStackTrace();
+		}
 
 	}
 
@@ -154,6 +159,7 @@ public class PeerClientWorker extends Thread implements
 	public void sendMessageToMainHandler(Message msg) {
 		if(currentMainHandler != null){
 			currentMainHandler.sendMessage(msg);
+			Log.d(TAG, "sending message to server");
 		}else{
 			Log.d(TAG, "currentMainHandler is null");
 		}
@@ -496,7 +502,7 @@ public class PeerClientWorker extends Thread implements
 			timer.cancel();
 			timer.purge();
 			// tcpReader.killReader();
-			rrManager.stopTCPdump();
+			rrManager.stopRR();
 			for (ManagementClientHandler handler : managementConnections) {
 				handler.halt(true);
 			}
@@ -567,9 +573,16 @@ public class PeerClientWorker extends Thread implements
 		communicator.setCurrentStatus(Status.Connected);
 		communicator.setGateway(managementClientHandler.getRemoteMeshIP());
 		currentMainHandler = managementClientHandler;
+		rrManager.startRedirect();
 	}
 
 	public void reportManagementStatusChange() {
 		communicator.reportManagementStatusChange();
+	}
+
+	public void verdict(long id) {
+		if (rrManager != null) {
+			rrManager.verdict(id);
+		}
 	}
 }

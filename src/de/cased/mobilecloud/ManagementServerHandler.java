@@ -38,6 +38,7 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.NeedPrivateSetInter
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionNACK;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
+import de.cased.mobilecloud.common.PeerCommunicationProtocol.ResourceRequestGrantMessage;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.ResourceRequestMessage;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
@@ -67,6 +68,8 @@ public class ManagementServerHandler extends Thread {
 
 	private ObjectOutputStream writer;
 	private ObjectInputStream reader;
+
+	private List<Long> grantedPacketIDs = new ArrayList<Long>();
 
 	private PeerCommunicationStateContext protocolState;
 	private boolean running;
@@ -235,78 +238,115 @@ public class ManagementServerHandler extends Thread {
 						});
 	}
 
+	private void addToGrantedIDs(long id) {
+		synchronized (grantedPacketIDs) {
+			grantedPacketIDs.add(id);
+		}
+	}
+
+	private boolean isAlreadyGranted(long id) {
+		synchronized (grantedPacketIDs) {
+			return grantedPacketIDs.contains(id);
+		}
+	}
+
 	private class ResourceRequestAnalyzer implements Runnable {
 		@Override
 		public void run() {
 			if (latestMessage instanceof ResourceRequestMessage) {
-				Log.d(TAG, "Received ResourceRequestMessage");
 
-				ResourceRequestMessage message = (ResourceRequestMessage) latestMessage;
-				byte[] tempTarget = new byte[message.getPayload().size()];
-				Log.d(TAG, "received encapsulated payload with size:"
-						+ message.getPayload().size());
-				message.getPayload().copyTo(tempTarget, 0);
-				try {
-					ResourceRequest request = new ResourceRequest(tempTarget);
-					// TODO: verify signature
-					// need the public key of the signer
 
-					SSLSession session = socket.getSession();
-					Log.d(TAG,
-							"used cipher suite is:" + session.getCipherSuite());
+				final ResourceRequestMessage message = (ResourceRequestMessage) latestMessage;
 
-					ContentVerifierProvider contentVerifierProvider = new JcaContentVerifierProviderBuilder()
-							.setProvider("BC").build(
-									peerCertificate.getPublicKey());
-					if (!request.isSignatureValid(contentVerifierProvider)) {
-						Log.d(TAG, "invalid signature");
-					} else {
-						Log.d(TAG,
-								"Resource Request signed correctly, retrieving information");
-						final int port = request.getPort();
-						final String transportLayer = Utilities
-								.ipHeaderIdToString(request.getTransportLayer());
-						final String destinationAddress = Utilities
-								.intIpToString(request
-								.getIP());
-
-						// TODO: open iptables, start TimerTask to close them
-						// again and store the ResourceRequest on SD card
-						persistRR(request, destinationAddress);
-						final String sourceAddress = getVpnAddress(getRealAddress());
-
-						config.allowMasqueradeFor(sourceAddress,
-								destinationAddress, transportLayer, port + "");
-						new Thread(
-							new Runnable() {
-								@Override
-								public void run() {
-								try {
-									Thread.sleep(Integer.parseInt(config
-											.getProperty("resource_request_time_to_live")));
-									config.removeMasqueradeFor(sourceAddress,
-											destinationAddress, transportLayer,
-											port + "");
-								} catch (NumberFormatException e) {
-									Log.e(TAG, e.getMessage(), e);
-								} catch (InterruptedException e) {
-									Log.e(TAG, e.getMessage(), e);
-								}
-								}
-							}
-						).start();
-
-					}
-
-				} catch (IOException e) {
-					Log.e(TAG, e.getMessage(), e);
-					Log.d(TAG,
-							"failed retrieving ResourceRequest from byte array");
-				} catch (OperatorCreationException e) {
-					Log.e(TAG, e.getMessage(), e);
-				} catch (PKCSException e) {
-					Log.e(TAG, e.getMessage(), e);
+				Log.d(TAG,
+						"Received ResourceRequestMessage: " + message.getId());
+				if (isAlreadyGranted(message.getId())) {
+					return;
 				}
+
+				new Thread() {
+					@Override
+					public void run() {
+						long messageId = message.getId();
+						byte[] tempTarget = new byte[message.getPayload()
+								.size()];
+						Log.d(TAG, "received encapsulated payload with size:"
+								+ message.getPayload().size());
+						message.getPayload().copyTo(tempTarget, 0);
+						try {
+							ResourceRequest request = new ResourceRequest(
+									tempTarget);
+							// TODO: verify signature
+							// need the public key of the signer
+
+							SSLSession session = socket.getSession();
+							Log.d(TAG,
+									"used cipher suite is:"
+											+ session.getCipherSuite());
+
+							ContentVerifierProvider contentVerifierProvider = new JcaContentVerifierProviderBuilder()
+									.setProvider("BC").build(
+											peerCertificate.getPublicKey());
+							if (!request
+									.isSignatureValid(contentVerifierProvider)) {
+								Log.d(TAG, "invalid signature");
+							} else {
+								Log.d(TAG,
+										"Resource Request signed correctly, retrieving information");
+								final int port = request.getPort();
+								final String transportLayer = Utilities
+										.ipHeaderIdToString(request
+												.getTransportLayer());
+								final String destinationAddress = Utilities
+										.intIpToString(request.getIP());
+
+								ResourceRequestGrantMessage grantMessage = ResourceRequestGrantMessage
+										.newBuilder().setId(messageId)
+										.build();
+
+
+								persistRR(request, destinationAddress);
+								final String sourceAddress = getVpnAddress(getRealAddress());
+
+								config.allowMasqueradeFor(sourceAddress,
+										destinationAddress, transportLayer,
+										port + "");
+								new Thread(new Runnable() {
+									@Override
+									public void run() {
+										try {
+											Thread.sleep(Integer.parseInt(config
+													.getProperty("resource_request_time_to_live")));
+											config.removeMasqueradeFor(
+													sourceAddress,
+													destinationAddress,
+													transportLayer, port + "");
+										} catch (NumberFormatException e) {
+											Log.e(TAG, e.getMessage(), e);
+										} catch (InterruptedException e) {
+											Log.e(TAG, e.getMessage(), e);
+										}
+									}
+								}).start();
+								addToGrantedIDs(messageId);
+								sendMessage(grantMessage);
+								latestMessage = null;
+							}
+
+						} catch (IOException e) {
+							Log.e(TAG, e.getMessage(), e);
+							Log.d(TAG,
+									"failed retrieving ResourceRequest from byte array");
+						} catch (OperatorCreationException e) {
+							Log.e(TAG, e.getMessage(), e);
+						} catch (PKCSException e) {
+							Log.e(TAG, e.getMessage(), e);
+						}
+					}
+				}.start();
+
+
+
 				latestMessage = null;
 			}
 		}
@@ -524,7 +564,7 @@ public class ManagementServerHandler extends Thread {
 								Log.e(TAG, e.getMessage(), e);
 							}
 						}
-				config.allowMasqueradeForIP(vpnAddress);
+				// config.allowMasqueradeForIP(vpnAddress);
 				}
 				}).start();
 
@@ -831,7 +871,7 @@ public class ManagementServerHandler extends Thread {
 
 	}
 
-	private void sendMessage(Message msg) {
+	private synchronized void sendMessage(Message msg) {
 		try {
 			Log.d(TAG, "going to send " + msg.getClass().getCanonicalName());
 			writer.writeObject(msg);
