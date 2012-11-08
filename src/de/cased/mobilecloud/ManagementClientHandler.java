@@ -133,6 +133,7 @@ public class ManagementClientHandler extends Thread{
 
 						if (latestMessage instanceof ResourceRequestGrantMessage) {
 							ResourceRequestGrantMessage message = (ResourceRequestGrantMessage) latestMessage;
+							Log.d(TAG, "verdict:" + message.getId());
 							backreference.verdict(message.getId());
 						}
 					}
@@ -147,7 +148,6 @@ public class ManagementClientHandler extends Thread{
 					public void run() {
 
 						if (latestMessage instanceof PrivateSetIntersectionNACK) {
-							// Why is this not evaluated?
 							Log.d(TAG,
 									"cannot connect to this one, we dont have the proper friend relation");
 							halt(false);

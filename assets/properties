@@ -36,6 +36,7 @@ management_connection_delay_between_retries = 10000
 ovpn_client_status_file=openvpn_client_status.log
 ovpn_client_log_file=openvpn_client.log
 resource_request_time_to_live=600000
+resource_request_pending_time=10000
 
 friendlist_r1=r1.list
 friendlist_r2=r2.list

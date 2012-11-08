@@ -6,6 +6,7 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.StringTokenizer;
 
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
@@ -78,16 +79,14 @@ public class IpqWorker extends Thread{
 								destinationIp, layer4proto,
 								Integer.parseInt(destinationPort), new Date(),
 								packetId);
-						manager.addEntry(element);
 						pendingIds.add(packetId);
+						manager.addEntry(element);
+
 
 					} else {
-						verdict(packetId);
+						verdict(packetId, destinationIp,
+								Integer.parseInt(destinationPort));
 					}
-
-					// System.out.printf("pass	%d:%s>%s:%s\n", packetId,
-					// sourceIp, destinationIp, destinationPort);
-
 				}
 
 			}else{
@@ -102,10 +101,20 @@ public class IpqWorker extends Thread{
 		}
 	}
 
-	public void verdict(long id) {
+	private int ipStringToInt(String ipString) {
+		StringTokenizer token = new StringTokenizer(ipString, ".");
+		int first = Integer.parseInt((String) token.nextElement());
+		int second = Integer.parseInt((String) token.nextElement()) << 8;
+		int third = Integer.parseInt((String) token.nextElement()) << 16;
+		int fourth = Integer.parseInt((String) token.nextElement()) << 24;
+		return first + second + third + fourth;
+
+	}
+
+	public void verdict(long id, String ip, int port) {
 		try {
 			pendingIds.remove(id);
-			writer.write(id + "\n");
+			writer.write(id + ";" + ipStringToInt(ip) + ";" + port + "\n");
 			writer.flush();
 		} catch (IOException e) {
 			e.printStackTrace();

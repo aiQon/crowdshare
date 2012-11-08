@@ -260,9 +260,9 @@ public class ManagementServerHandler extends Thread {
 
 				Log.d(TAG,
 						"Received ResourceRequestMessage: " + message.getId());
-				if (isAlreadyGranted(message.getId())) {
-					return;
-				}
+				// if (isAlreadyGranted(message.getId())) {
+				// return;
+				// }
 
 				new Thread() {
 					@Override
@@ -329,8 +329,10 @@ public class ManagementServerHandler extends Thread {
 									}
 								}).start();
 								addToGrantedIDs(messageId);
-								sendMessage(grantMessage);
 								latestMessage = null;
+								Log.d(TAG, "sending verdict for:" + messageId);
+								sendMessage(grantMessage);
+
 							}
 
 						} catch (IOException e) {
