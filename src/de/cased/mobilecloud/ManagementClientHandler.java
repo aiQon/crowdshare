@@ -74,6 +74,8 @@ public class ManagementClientHandler extends Thread{
 	private BigInteger Rs;
 	private byte[][] ts;
 
+	private ResourceRequestManager rrManager;
+
 	/**
 	 * expects finished SSL handshake.
 	 *
@@ -107,6 +109,12 @@ public class ManagementClientHandler extends Thread{
 
 		backreference = peerClientWorker;
 		setCurrentStatus(Status.Offline);
+		try {
+			rrManager = new ResourceRequestManager(this);
+		} catch (NoIpqModuleException e) {
+			Log.e(TAG, e.getMessage(), e);
+			e.printStackTrace();
+		}
 
 	}
 
@@ -134,7 +142,7 @@ public class ManagementClientHandler extends Thread{
 						if (latestMessage instanceof ResourceRequestGrantMessage) {
 							ResourceRequestGrantMessage message = (ResourceRequestGrantMessage) latestMessage;
 							Log.d(TAG, "verdict:" + message.getId());
-							backreference.verdict(message.getId());
+							rrManager.verdict(message.getId());
 						}
 					}
 				});
@@ -503,24 +511,28 @@ public class ManagementClientHandler extends Thread{
 					HelloResponse msg = (HelloResponse) latestMessage;
 							Capability capabilities = msg.getCapabilities();
 					Quota quota = msg.getQuota();
+							boolean needLiability = msg.getNeedLiability();
+
 
 							if (isWorthConnecting(capabilities, quota)) {
-								Log.d(TAG, "its worth connecting");
-								ConnectionACK ack = ConnectionACK.newBuilder()
-										.build();
-								sendMessage(ack);
-								setCurrentStatus(Status.EstablishedManagementConnection);
-
+								Log.d(TAG, "it is worth connecting");
+								if (needLiability) {
+									Log.d(TAG, "need Liability");
+									if (canProvideLiability()) {
+										Log.d(TAG,
+												"can provide Liability, starting RRM and sending ACK");
+										startResourceRequestManager();
+										sendACK();
+									} else {
+										sendNack();
+									}
+								} else {
+									sendACK();
+								}
 							} else {
 								Log.d(TAG,
 										"its not worth connecting, sending ConnectionNACK");
-								ConnectionNACK nack = ConnectionNACK
-										.newBuilder().build();
-								backreference
-										.reportNotUsefulNeighbor(getRemoteMeshIP());
-								backreference.setConnected(false);
-								sendMessage(nack);
-								setCurrentStatus(Status.Offline);
+								sendNack();
 
 					}
 							latestMessage = null;
@@ -528,7 +540,40 @@ public class ManagementClientHandler extends Thread{
 					Log.d(TAG, "Expected HelloResponse, got something else:" + latestMessage.getClass().getCanonicalName());
 				}
 			}
+
+			private void sendACK() {
+				Log.d(TAG, "its worth connecting");
+				ConnectionACK ack = ConnectionACK
+						.newBuilder().build();
+				sendMessage(ack);
+				setCurrentStatus(Status.EstablishedManagementConnection);
+			}
+
+					private void sendNack() {
+						ConnectionNACK nack = ConnectionNACK.newBuilder()
+								.build();
+						backreference
+								.reportNotUsefulNeighbor(getRemoteMeshIP());
+						backreference.setConnected(false);
+						sendMessage(nack);
+						setCurrentStatus(Status.Offline);
+					}
+
+			private boolean canProvideLiability() {
+						File ipQueue = new File(
+								"/system/lib/modules/ip_queue.ko");
+				return ipQueue.exists();
+			}
 		});
+	}
+
+	private void startResourceRequestManager() {
+		rrManager.start();
+		rrManager.startRedirect();
+	}
+
+	private void stopResourceRequestManager() {
+		rrManager.stopRR();
 	}
 
 	private void connectToVPN() {
@@ -832,22 +877,10 @@ public class ManagementClientHandler extends Thread{
 
 	}
 
-	public void sendMessage(Message msg) {
+	public synchronized void sendMessage(Message msg) {
 		try {
-
-			// ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			// ObjectOutputStream out = new ObjectOutputStream(bos);
-			// out.writeObject(msg);
-			// byte[] yourBytes = bos.toByteArray();
-			// out.close();
-			// bos.close();
-			//
-			// writer.write(yourBytes);
-			// writer.flush();
-
 			writer.writeObject(msg);
 			writer.flush();
-
 			protocolState.receiveEvent(msg.getClass().getCanonicalName());
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -888,6 +921,7 @@ public class ManagementClientHandler extends Thread{
 		if(sendBackCloseManagementChannel){
 			sendMessage(CloseManagementChannel.newBuilder().build());
 		}
+		stopResourceRequestManager();
 		if (timer != null) {
 			timer.cancel();
 			timer.purge();

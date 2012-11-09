@@ -196,19 +196,14 @@ public class ManagementServerHandler extends Thread {
 							}
 
 							private void sendPositiveResponse() {
-								HelloResponse.Builder builder = HelloResponse
-										.newBuilder();
+
 
 								Capability.Builder capBuilder = Capability
 										.newBuilder();
 								capBuilder
 										.addCapability(CapabilityItem.INTERNET);
 
-								Quota quota = getQuota();
-
-								builder.setCapabilities(capBuilder.build());
-								builder.setQuota(quota);
-								sendMessage(builder.build());
+								sendHelloResponse(capBuilder.build());
 							}
 
 							private byte[][] extractTs(List<ByteString> tsList) {
@@ -566,6 +561,10 @@ public class ManagementServerHandler extends Thread {
 								Log.e(TAG, e.getMessage(), e);
 							}
 						}
+				if (!config.getPreferences().getBoolean(
+						SecuritySetupActivity.ENABLE_LIABILITY, false)) {
+					config.allowMasqueradeForIP(vpnAddress);
+				}
 				// config.allowMasqueradeForIP(vpnAddress);
 				}
 				}).start();
@@ -663,13 +662,22 @@ public class ManagementServerHandler extends Thread {
 			Capability intersection = getCapabilityIntersection(msg
 					.getCapabilities());
 			// List<CapabilityItem> cap = msg.getCapabilityList();
-			Quota quota = getQuota();
-
-			HelloResponse.Builder builder = HelloResponse.newBuilder();
-			builder.setCapabilities(intersection);
-			builder.setQuota(quota);
-			sendMessage(builder.build());
+			sendHelloResponse(intersection);
 		}
+	}
+
+	private void sendHelloResponse(Capability caps) {
+		HelloResponse.Builder builder = HelloResponse.newBuilder();
+		Quota quota = getQuota();
+		builder.setCapabilities(caps);
+		builder.setQuota(quota);
+		if (config.getPreferences().getBoolean(
+				SecuritySetupActivity.ENABLE_LIABILITY, false)) {
+			builder.setNeedLiability(true);
+		} else {
+			builder.setNeedLiability(false);
+		}
+		sendMessage(builder.build());
 	}
 
 

@@ -41,7 +41,7 @@ public class ResourceRequestManager {
 
 	private List<ResourceRequestHistoryElement> history = new ArrayList<ResourceRequestHistoryElement>();
 	private List<ResourceRequestHistoryElement> pending = new ArrayList<ResourceRequestHistoryElement>();
-	private PeerClientWorker worker;
+	private ManagementClientHandler handler;
 
 	public synchronized void addEntry(ResourceRequestHistoryElement entry) {
 		if (!isAlreadyInHistory(entry) && !isAlreadyPending(entry)) {
@@ -63,7 +63,7 @@ public class ResourceRequestManager {
 						"issue new RR with id:" + message.getId() + " -> "
 								+ entry.getIp() + ":" + entry.getPort() + "("
 								+ entry.getLayer4() + ")");
-				worker.sendMessageToMainHandler(message);
+				handler.sendMessage(message);
 				// ipqworker.verdict(entry.getPacketId()); // TODO this needs to
 				// be
 														// moved!
@@ -121,9 +121,10 @@ public class ResourceRequestManager {
 	}
 
 
-	public ResourceRequestManager(PeerClientWorker worker)
+	public ResourceRequestManager(
+			ManagementClientHandler managementClientHandler)
 			throws NoIpqModuleException {
-		this.worker = worker;
+		this.handler = managementClientHandler;
 
 		String ipqKernelModule = "insmod /system/lib/modules/ip_queue.ko";
 		String answer = Utilities.runCommand(new String[] { ipqKernelModule });
@@ -172,7 +173,7 @@ public class ResourceRequestManager {
 
 	private void startIpqServer(String socket) {
 		String command = ipqserverLocation + " " + socketLocation;
-		// Utilities.runCommand(new String[] { command });
+		Utilities.runCommand(new String[] { command });
 	}
 
 	private void stopIpqServer() {

@@ -46,7 +46,7 @@ public class PeerClientWorker extends Thread implements
 	private boolean isConnected = false;
 
 	private PeerClientCommunicator communicator;
-	private ResourceRequestManager rrManager;
+
 
 
 
@@ -91,19 +91,12 @@ public class PeerClientWorker extends Thread implements
 				Integer.parseInt(config.getProperties().getProperty(
 						"management_connections"));
 		this.communicator = communicator;
-		try {
-			rrManager = new ResourceRequestManager(this);
-		} catch (NoIpqModuleException e) {
-			Log.e(TAG, e.getMessage(), e);
-			e.printStackTrace();
-		}
+
 
 	}
 
 	@Override
 	public void run(){
-		rrManager.start();
-
 		initNeighborListUpdater();
 		while (running) {
 			Log.d(TAG,
@@ -502,7 +495,7 @@ public class PeerClientWorker extends Thread implements
 			timer.cancel();
 			timer.purge();
 			// tcpReader.killReader();
-			rrManager.stopRR();
+
 			for (ManagementClientHandler handler : managementConnections) {
 				handler.halt(true);
 			}
@@ -573,16 +566,16 @@ public class PeerClientWorker extends Thread implements
 		communicator.setCurrentStatus(Status.Connected);
 		communicator.setGateway(managementClientHandler.getRemoteMeshIP());
 		currentMainHandler = managementClientHandler;
-		rrManager.startRedirect();
+
 	}
 
 	public void reportManagementStatusChange() {
 		communicator.reportManagementStatusChange();
 	}
 
-	public void verdict(long id) {
-		if (rrManager != null) {
-			rrManager.verdict(id);
-		}
-	}
+	// public void verdict(long id) {
+	// if (rrManager != null) {
+	// rrManager.verdict(id);
+	// }
+	// }
 }
