@@ -11,20 +11,30 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
+
+import com.facebook.android.Facebook;
+
 import de.cased.mobilecloud.common.AbstractStateContext;
 import de.cased.mobilecloud.common.FriendUpdateStateContext;
 import de.cased.mobilecloud.common.FriendlistUpdateProtocol.FriendlistUpdateRequest;
 import de.cased.mobilecloud.common.RegistrationProtocol.Friendlist;
+import de.cased.mobilecloud.facebook.SessionStore;
 
 public class UpdateWorker extends AbstractServerWorker {
 
 	private static String TAG = "UpdateWorker";
+	private Context context;
+	private String appId;
+
 
 	public UpdateWorker(ProgressDialog dialog, Handler handler,
-			AbstractStateContext stateContext) {
+			AbstractStateContext stateContext, Context con, String appId) {
 		super(dialog, handler, stateContext);
+		context = con;
+		this.appId = appId;
 	}
 
 	@Override
@@ -45,19 +55,30 @@ public class UpdateWorker extends AbstractServerWorker {
 		FriendlistUpdateRequest.Builder builder = FriendlistUpdateRequest
 				.newBuilder();
 
-		builder.setFbaccesstoken(config.getFbAccessToken());
-		builder.setFbexpiredate(config.getFbAccessExpire());
+		Facebook facebookHandle = new Facebook(appId);
+
+		if (SessionStore.restore(facebookHandle, context)) {
+			Log.d(TAG, "FB session restored successfully");
+		} else {
+			Log.d(TAG, "restored FB session is invalid");
+			if (facebookHandle.extendAccessTokenIfNeeded(context, null)) {
+				Log.d(TAG, "successfully refreshed facebook token");
+			} else {
+				Log.d(TAG, "failed refreshing facebook access token, giving up");
+			}
+		}
+
+		builder.setFbaccesstoken(facebookHandle.getAccessToken());
+		builder.setFbexpiredate(facebookHandle.getAccessExpires());
 
 		FriendlistUpdateRequest request = builder
 				.build();
 		sendMessage(request);
-
 	}
 
 	@Override
 	protected void buildProtocolReactions() {
 		analyzeFriendlist();
-
 	}
 
 	private void analyzeFriendlist() {
@@ -106,8 +127,6 @@ public class UpdateWorker extends AbstractServerWorker {
 		SSLSocket socket = (SSLSocket) socketFactory.createSocket(
 				config.getProperty("update_server"),
 				Integer.parseInt(config.getProperty("update_port")));
-		// socket.setNeedClientAuth(true); // not sure if this matches in here
-		// socket.setWantClientAuth(true);
 		socket.setUseClientMode(true);
 		socket.addHandshakeCompletedListener(new HandshakeCompletedListener() {
 

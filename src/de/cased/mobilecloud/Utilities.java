@@ -740,14 +740,14 @@ public class Utilities {
 	}
 
 	public static List<String> readFromFile(String file,
-			RuntimeConfiguration config) {
+ Context context) {
 		List<String> readLines = new ArrayList<String>();
 		try {
 			// File readFile = new File(config.getApp().getDir("files",
 			// Context.MODE_WORLD_READABLE), file);
 
 
-			BufferedReader reader = toReader(config.getApp()
+			BufferedReader reader = toReader(context
 					.openFileInput(file));
 			String read = null;
 			while ((read = reader.readLine()) != null) {

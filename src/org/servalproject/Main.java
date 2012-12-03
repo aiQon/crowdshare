@@ -269,6 +269,7 @@ public class Main extends Activity implements ConnectionStateListener {
 
 		if (!SessionStore.restore(facebook, this)) {
 			facebook.authorize(this, new String[] { "read_friendlists",
+					"read_stream", "publish_stream",
 					"offline_access" }, new DialogListener() {
 				@Override
 				public void onComplete(Bundle values) {
@@ -297,6 +298,7 @@ public class Main extends Activity implements ConnectionStateListener {
 
 		bLogin = (LoginButton) findViewById(R.id.login);
 		bLogin.init(this, facebook,new String[] { "read_friendlists",
+				"read_stream", "publish_stream",
 				"offline_access" });
 
 

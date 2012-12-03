@@ -70,7 +70,7 @@ public class ManagementClientHandler extends Thread{
 	private Status currentStatus;
 
 	private PrivateSetIntersectionCardinality setIntersection;
-	private List<FacebookEntry> friends;
+	private List<String> friends;
 	private BigInteger Rs;
 	private byte[][] ts;
 
@@ -172,14 +172,16 @@ public class ManagementClientHandler extends Thread{
 					@Override
 					public void run() {
 								if (latestMessage instanceof NeedPrivateSetIntersection) {
+									NeedPrivateSetIntersection need = (NeedPrivateSetIntersection) latestMessage;
 									setCurrentStatus(Status.Connecting);
 									Log.d(TAG,
 											"received NeedPrivateSetIntersection");
-									loadFriends();
+									loadFriends(need.getNeedFBbWallNonces());
 									if(canProvideFriendInformation()){
 										initOwnSetIntersectionInstance();
-										performClientRound1();
-										NeedPrivateSetIntersection need = (NeedPrivateSetIntersection) latestMessage;
+										performClientRound1(need
+												.getNeedFBbWallNonces());
+
 										int numberOfServerFriends = need
 												.getNumberOfFriends();
 										Log.d(TAG,
@@ -293,12 +295,13 @@ public class ManagementClientHandler extends Thread{
 
 	}
 
-	protected void performClientRound1() {
+	protected void performClientRound1(boolean needNonces) {
 		ts = new byte[friends.size()][];
 		byte[][] s = new byte[friends.size()][];
 
 		for (int i = 0; i < friends.size(); i++) {
-			BigInteger friendInt = new BigInteger(friends.get(i).getId());
+			BigInteger friendInt = new BigInteger(friends.get(i),
+					needNonces ? 16 : 10);
 			s[i] = friendInt.toByteArray();
 			Log.d(TAG, "adding " + friendInt.toString());
 		}
@@ -330,16 +333,39 @@ public class ManagementClientHandler extends Thread{
 	// return friends.size();
 	// }
 
-	private int loadFriends() {
-		String localfriends = config.getProperty("localfriends");
+	private int loadFriends(boolean noncesNeeded) {
+		if (!noncesNeeded)
+			return loadLocalFriends();
+		else
+			return loadLocalNonces();
+	}
 
-		friends = new ArrayList<FacebookEntry>();
-		List<String> friendList = Utilities.readFromFile(localfriends, config);
+	private int loadLocalNonces() {
+		String localfriends = config.getProperty("nonce_location");
+
+		friends = new ArrayList<String>();
+		List<String> friendList = Utilities.readFromFile(localfriends,
+				config.getApp());
 		for (String r1 : friendList) {
 			if (r1 != null && !r1.equals("")) {
-				Log.d(TAG, "adding friend:" + r1);
-				friends.add(new FacebookEntry(r1));
 
+				friends.add(r1);
+			}
+		}
+		return friends.size();
+	}
+
+	private int loadLocalFriends() {
+		String localfriends = config.getProperty("localfriends");
+
+		friends = new ArrayList<String>();
+		List<String> friendList = Utilities.readFromFile(localfriends,
+				config.getApp());
+		for (String r1 : friendList) {
+			int colon = -1;
+			if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
+
+				friends.add(r1.substring(0, colon));
 			}
 		}
 		return friends.size();

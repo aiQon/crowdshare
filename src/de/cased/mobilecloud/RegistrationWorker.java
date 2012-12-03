@@ -1,7 +1,9 @@
 package de.cased.mobilecloud;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -28,6 +30,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
 
@@ -55,6 +58,7 @@ public class RegistrationWorker extends AbstractServerWorker {
 	// private ProgressDialog dialog;
 	// private Handler handler;
 	private HashMap messageData = new HashMap();
+	private Context context;
 	// private RegistrationCallback callback;
 	// private RegistrationStateContext protocolState;
 	// private Object latestMessage;
@@ -66,7 +70,7 @@ public class RegistrationWorker extends AbstractServerWorker {
 
 
 	public RegistrationWorker(ProgressDialog dialog, Handler handler,
-			AbstractStateContext stateContext) {
+			AbstractStateContext stateContext, Context context) {
 		// config = RuntimeConfiguration.getInstance();
 		// // this.callback = callback;
 		// this.dialog = dialog;
@@ -74,6 +78,7 @@ public class RegistrationWorker extends AbstractServerWorker {
 		// Security.addProvider(new BouncyCastleProvider());
 		// buildProtocolReactions();
 		super(dialog, handler, stateContext);
+		this.context = context;
 	}
 
 	@Override
@@ -275,6 +280,11 @@ public class RegistrationWorker extends AbstractServerWorker {
 	public void run() {
 
 		try {
+			RegistrationNoncePoster poster = new RegistrationNoncePoster(
+					config.getProperty("appid"),
+					config.getApp());
+			String nonce = poster.postNonce();
+			persistNonce(nonce);
 			socket = connectToServer();
 			startProtocol();
 
@@ -286,6 +296,24 @@ public class RegistrationWorker extends AbstractServerWorker {
 
 		if (dialog != null && dialog.isShowing()) {
 			   dialog.dismiss();
+		}
+	}
+
+	private void persistNonce(String nonce) {
+		try {
+			String meNonceLocation = config.getProperty("menonce");
+			BufferedOutputStream bos = new BufferedOutputStream(
+					context.openFileOutput(meNonceLocation,
+							Context.MODE_PRIVATE));
+			bos.write(nonce.getBytes());
+			bos.write('\n');
+			bos.flush();
+			bos.close();
+			Log.d(TAG, "persisted me to" + meNonceLocation);
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, e.getMessage(), e);
+		} catch (IOException e) {
+			Log.e(TAG, e.getMessage(), e);
 		}
 	}
 

@@ -85,8 +85,8 @@ public class ManagementServerHandler extends Thread {
 	// private BigInteger Rc;
 	private BigInteger Rc_inv;
 
-	private List<FacebookEntry> friends;
-	private FacebookEntry me;
+	private List<String> friends;
+	private String me;
 
 	private long tsStart;
 	private long tsStop;
@@ -644,18 +644,26 @@ public class ManagementServerHandler extends Thread {
 		// Response or if its private set intersection, send a
 		// "NeedPrivateSetIntersection" Signal
 
-		if (config
+		boolean christofaroWithIDs = config
 				.getPreferences()
 				.getBoolean(
 						SecuritySetupActivity.ENABLE_TETHERING_FRIENDS_SET_INTERSECTION,
-						false)) {
+						false);
+		boolean christofaroWithNonces = config
+				.getPreferences()
+				.getBoolean(
+						SecuritySetupActivity.ENABLE_TETHERING_NONCE,
+						false);
+
+
+		if (christofaroWithIDs || christofaroWithNonces) {
 			Log.d(TAG, "start private set intersection procedure");
-			loadMe();
-			loadFriends();
+			loadMe(christofaroWithNonces);
+			loadFriends(christofaroWithNonces);
 			tsStart = System.currentTimeMillis();
 			setIntersection = new PrivateSetIntersectionCardinality();
 			setIntersection.setNumberOfServerFriends(friends.size());
-			serverInitialStep();
+			serverInitialStep(christofaroWithNonces);
 		} else {
 
 			// Capability capa = msg.getCapabilities();
@@ -681,34 +689,74 @@ public class ManagementServerHandler extends Thread {
 	}
 
 
-	private void loadMe() {
-		String localme = config.getProperty("myInfo");
-		List<String> myInfo = Utilities.readFromFile(localme, config);
-		me = new FacebookEntry(myInfo.get(0));
+	private void loadMe(boolean needNonce) {
+		if (!needNonce)
+			loadFacebookIdMe();
+		else
+			loadNonceMe();
 	}
 
-	private int loadFriends() {
-		String localfriends = config.getProperty("localfriends");
+	private void loadNonceMe() {
+		String localme = config.getProperty("menonce");
+		List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
+		me = myInfo.get(0);
 
-		friends = new ArrayList<FacebookEntry>();
-		List<String> friendList = Utilities.readFromFile(localfriends, config);
+	}
+
+	private void loadFacebookIdMe() {
+		String localme = config.getProperty("myInfo");
+		List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
+		me = myInfo.get(0).substring(0, myInfo.get(0).indexOf(':'));
+	}
+
+	private int loadFriends(boolean noncesNeeded) {
+		if (!noncesNeeded)
+			return loadLocalFriends();
+		else
+			return loadLocalNonces();
+	}
+
+	private int loadLocalNonces() {
+		String localfriends = config.getProperty("nonce_location");
+
+		friends = new ArrayList<String>();
+		List<String> friendList = Utilities.readFromFile(localfriends,
+				config.getApp());
 		for (String r1 : friendList) {
 			if (r1 != null && !r1.equals("")) {
-				friends.add(new FacebookEntry(r1));
+
+				friends.add(r1);
 			}
 		}
 		return friends.size();
 	}
 
-	private void serverInitialStep() {
+	private int loadLocalFriends() {
+		String localfriends = config.getProperty("localfriends");
+
+		friends = new ArrayList<String>();
+		List<String> friendList = Utilities.readFromFile(localfriends,
+				config.getApp());
+		for (String r1 : friendList) {
+			int colon = -1;
+			if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
+
+				friends.add(r1.substring(0, colon));
+			}
+		}
+		return friends.size();
+	}
+
+	private void serverInitialStep(boolean needNonces) {
 		BigInteger[] a = new BigInteger[friends.size()];
 		byte[][] c = new byte[friends.size()][];
-		byte[] C = new BigInteger(String.valueOf(me.getId())).toByteArray();
+		byte[] C = new BigInteger(me, needNonces ? 16 : 10).toByteArray();
 		BigInteger[] A = new BigInteger[1];
 
 		for (int i = 0; i < friends.size(); i++) {
-			BigInteger friendInt = new BigInteger(friends.get(i).getId());
-			Log.d(TAG, "added friend " + friends.get(i).getId());
+			BigInteger friendInt = new BigInteger(friends.get(i),
+					needNonces ? 16 : 10);
+			Log.d(TAG, "added friend " + friends.get(i));
 			c[i] = friendInt.toByteArray();
 		}
 		BigInteger Rc = setIntersection.server_round_1(c, a, C, A);
@@ -728,6 +776,7 @@ public class ManagementServerHandler extends Thread {
 		needBuilder.setA0(aoCapsule);
 
 		needBuilder.setNumberOfFriends(friends.size());
+		needBuilder.setNeedFBbWallNonces(needNonces);
 
 		sendMessage(needBuilder.build());
 	}
@@ -775,7 +824,8 @@ public class ManagementServerHandler extends Thread {
 	}
 
 	private boolean isFriend(String friendFile, String subject) {
-		List<String> r1Friends = Utilities.readFromFile(friendFile, config);
+		List<String> r1Friends = Utilities.readFromFile(friendFile,
+				config.getApp());
 		Log.d(TAG, "loaded list" + friendFile);
 		for (String friend : r1Friends) {
 			Log.d(TAG, "checking on:" + friend);

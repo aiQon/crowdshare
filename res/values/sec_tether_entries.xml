@@ -3,8 +3,9 @@
         <string-array name="sec_tether_entries">
             <item >Off</item>
             <item >for All</item>
-            <item >for FB friends (fast)</item>
-            <item >for FB friends (secure)</item>
+            <item >for FB friends (server aided)</item>
+            <item >for FB friends (christo w/ fb ids)</item>
+            <item >for FB friends (christo w/ fb nonces)</item>
         </string-array>
         
         <string-array name="sec_tether_values">
@@ -12,5 +13,6 @@
             <item >anonymous</item>
             <item >server-side</item>
             <item >private-set-intersection</item>
+            <item >private-set-intersection nonces</item>
         </string-array>
     </resources>

@@ -268,6 +268,13 @@
 				android:resource="@xml/contacts" />
 	    </service>
 	    
+	    
+	    <service
+	         android:exported="true"
+	         android:name="de.cased.mobilecloud.fof.FofNonceRegistrationService">
+		</service>
+	    
+	    
 	    <activity android:launchMode="singleTop" android:name="WifiJammedActivity"></activity>
 
         <!-- Rhizome application activities -->

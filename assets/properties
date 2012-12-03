@@ -46,3 +46,6 @@ myInfo=me.entry
 appid=360870950666152
 
 rr_dir=/sdcard/RR
+
+nonce_location=nonces
+menonce=me.nonce

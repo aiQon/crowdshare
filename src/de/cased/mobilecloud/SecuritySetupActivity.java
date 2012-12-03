@@ -48,6 +48,9 @@ public class SecuritySetupActivity extends PreferenceActivity {
 	public static String ENABLE_TETHERING = "tethering_string";
 	public static String ENABLE_TETHERING_FRIENDS = "tethering_string_friends";
 	public static String ENABLE_TETHERING_FRIENDS_SET_INTERSECTION = "set intersection";
+	public static String ENABLE_TETHERING_NONCE = "nonce based intersection";
+
+	public static String TETHERING = "tethering";
 
 	public static String ENABLE_DIRECT_FRIENDS_TETHERING = "enableDirectFriendsTethering";
 	public static String ENABLE_FOF_TETHERING = "enableFoFTethering";
@@ -114,6 +117,9 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		} else if (config.getPreferences().getBoolean(
 				ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false)) {
 			tehterPreference.setValue("private-set-intersection");
+		} else if (config.getPreferences().getBoolean(ENABLE_TETHERING_NONCE,
+				false)) {
+			tehterPreference.setValue("private-set-intersection nonces");
 		} else {
 			tehterPreference.setValue("off");
 		}
@@ -121,6 +127,8 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		if (config.getPreferences().getBoolean(
 				ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false)
 				|| config.getPreferences().getBoolean(ENABLE_TETHERING_FRIENDS,
+						false)
+				|| config.getPreferences().getBoolean(ENABLE_TETHERING_NONCE,
 						false)) {
 			enableDirectFriendsTethering.setEnabled(true);
 			enableFoFTethering.setEnabled(true);
@@ -181,25 +189,6 @@ public class SecuritySetupActivity extends PreferenceActivity {
 	}
 
 	private void registerReactions() {
-
-
-
-		// enableSecurity
-		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-		//
-		// @Override
-		// public boolean onPreferenceChange(Preference preference,
-		// Object newValue) {
-		// SharedPreferences.Editor editor = config
-		// .getPreferences().edit();
-		// editor.putBoolean(ENABLE_SECURITY, (Boolean) newValue);
-		// editor.commit();
-		// enableSecurity.setChecked((Boolean) newValue);
-		// return true;
-		// }
-		// });
-
-
 		enableMobileCloud
 				.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
 
@@ -270,49 +259,6 @@ public class SecuritySetupActivity extends PreferenceActivity {
 					}
 				});
 
-		// enableTethering
-		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-		//
-		// @Override
-		// public boolean onPreferenceChange(Preference preference,
-		// Object newValue) {
-		// boolean value = (Boolean) newValue;
-		// enableTetheringAll(value);
-		// if (value) {
-		// enableTetheringFriends(false);
-		// // enableTetheringFriends.setEnabled(false);
-		// // } else {
-		// // enableTetheringFriends.setEnabled(true);
-		// }
-		// return true;
-		// }
-		//
-		// });
-
-		// enableTetheringFriends
-		// .setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-		//
-		// @Override
-		// public boolean onPreferenceChange(Preference preference,
-		// Object newValue) {
-		//
-		// boolean value = (Boolean) newValue;
-		//
-		// enableTetheringFriends(value);
-		//
-		// if (value) {
-		// enableTetheringAll(false);
-		// // enableTethering.setEnabled(false);
-		// // } else {
-		// // enableTethering.setEnabled(true);
-		// }
-		//
-		// return true;
-		// }
-		//
-		//
-		// });
-
 
 		register.setOnPreferenceClickListener(new OnPreferenceClickListener() {
 
@@ -362,6 +308,7 @@ public class SecuritySetupActivity extends PreferenceActivity {
 					public boolean onPreferenceChange(Preference preference,
 							Object newValue) {
 						Log.d(TAG, "current value is:" + newValue.toString());
+						// setTetheringEntry(newValue.toString());
 						deactivateAllTether();
 						String keyFromList = getKeyFromList((String) newValue);
 						manageSubmenue(keyFromList);
@@ -376,8 +323,10 @@ public class SecuritySetupActivity extends PreferenceActivity {
 	protected void manageSubmenue(String keyFromList) {
 		if (keyFromList != null
 				&& (keyFromList.equals(ENABLE_TETHERING_FRIENDS)
+ || keyFromList
+						.equals(ENABLE_TETHERING_FRIENDS_SET_INTERSECTION))
 				|| keyFromList
-						.equals(ENABLE_TETHERING_FRIENDS_SET_INTERSECTION))) {
+.equals(ENABLE_TETHERING_NONCE)) {
 			enableDirectFriendsTethering.setEnabled(true);
 			enableFoFTethering.setEnabled(true);
 		} else {
@@ -393,25 +342,17 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			return ENABLE_TETHERING_FRIENDS.toString();
 		} else if (newValue.equals("private-set-intersection")) {
 			return ENABLE_TETHERING_FRIENDS_SET_INTERSECTION.toString();
+		} else if (newValue.equals("private-set-intersection nonces")) {
+			return ENABLE_TETHERING_NONCE.toString();
 		} else {
 			return null;
 		}
 	}
 
-	// private void enableTetheringAll(boolean newValue) {
+	// private void setTetheringEntry(String value) {
 	// SharedPreferences.Editor editor = config.getPreferences().edit();
-	// editor.putBoolean(ENABLE_TETHERING, newValue);
+	// editor.putString(TETHERING, value);
 	// editor.commit();
-	//
-	// enableTethering.setChecked(newValue);
-	// }
-
-	// private void enableTetheringFriends(boolean value) {
-	// SharedPreferences.Editor editor = config.getPreferences().edit();
-	// editor.putBoolean(ENABLE_TETHERING_FRIENDS, value);
-	// editor.commit();
-	//
-	// enableTetheringFriends.setChecked(value);
 	// }
 
 	private void setEditorBool(String key, boolean value) {
@@ -427,6 +368,7 @@ public class SecuritySetupActivity extends PreferenceActivity {
 		editor.putBoolean(ENABLE_TETHERING, false);
 		editor.putBoolean(ENABLE_TETHERING_FRIENDS, false);
 		editor.putBoolean(ENABLE_TETHERING_FRIENDS_SET_INTERSECTION, false);
+		editor.putBoolean(ENABLE_TETHERING_NONCE, false);
 		editor.commit();
 	}
 
@@ -435,13 +377,15 @@ public class SecuritySetupActivity extends PreferenceActivity {
 			ProgressDialog dialog = ProgressDialog.show(this,
 					"Performing Update", "Please wait...", true);
 			UpdateWorker update = new UpdateWorker(dialog, handler,
-					new FriendUpdateStateContext());
+					new FriendUpdateStateContext(), this,
+					config.getProperty("appid"));
 			update.start();
 
 			LocalFacebookUpdater localUpdater = new LocalFacebookUpdater(
 					config.getProperty("appid"), this,
 					config.getProperty("localfriends"),
-					config.getProperty("myInfo"));
+					config.getProperty("myInfo"),
+					config.getProperty("nonce_location"));
 			localUpdater.start();
 
 		} catch (Exception e) {
@@ -457,7 +401,7 @@ public class SecuritySetupActivity extends PreferenceActivity {
 					"Please wait...", true);
 			RegistrationWorker registrationWorker = new RegistrationWorker(
 					dialog, handler,
-					new RegistrationStateContext());
+ new RegistrationStateContext(), this);
 			registrationWorker.start();
 
 		} catch (Exception e) {
