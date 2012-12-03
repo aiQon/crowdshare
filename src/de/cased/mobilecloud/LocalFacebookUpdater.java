@@ -26,6 +26,7 @@ import com.facebook.android.Facebook;
 import com.facebook.android.FacebookError;
 
 import de.cased.mobilecloud.facebook.SessionStore;
+import de.cased.mobilecloud.fof.FofNonceRegistrationService;
 import de.cased.mobilecloud.fof.IRemoteFofRegistrationService;
 
 //ud.facebook.SessionStore;
@@ -85,8 +86,8 @@ public class LocalFacebookUpdater extends Thread {
 		this.appId = appId;
 		this.nonceLocation = nonceLocation;
 		mAsyncRunner = new AsyncFacebookRunner(facebookHandle);
-		context.bindService(
-				new Intent(IRemoteFofRegistrationService.class.getName()),
+		context.bindService(new Intent(context,
+				FofNonceRegistrationService.class),
 				mConnection, Context.BIND_AUTO_CREATE);
 	}
 
@@ -95,10 +96,8 @@ public class LocalFacebookUpdater extends Thread {
 	public void run() {
 		try {
 			while (mIRemoteService == null) {
-				if (mIRemoteService == null) {
-					synchronized (this) {
-						wait();
-					}
+				synchronized (this) {
+					wait();
 				}
 			}
 			retrieveFriendsNonces();
@@ -106,8 +105,8 @@ public class LocalFacebookUpdater extends Thread {
 			Log.d(TAG, "somethingBroke");
 			somethingBroke.printStackTrace();
 		}
-		// deleteFriendsList();
-		// getAndPersistFriends();
+		deleteFriendsList();
+		getAndPersistFriends();
 	}
 
 
@@ -120,8 +119,8 @@ public class LocalFacebookUpdater extends Thread {
 			// to call on the service
 			mIRemoteService = IRemoteFofRegistrationService.Stub
 					.asInterface(service);
-			synchronized (this) {
-				notifyAll();
+			synchronized (LocalFacebookUpdater.this) {
+				LocalFacebookUpdater.this.notifyAll();
 			}
 		}
 
@@ -179,6 +178,7 @@ public class LocalFacebookUpdater extends Thread {
 
 		try {
 			mIRemoteService.update(appId);
+			Log.d(TAG, "retrieved Friends nonces");
 		} catch (RemoteException e) {
 			Log.d(TAG, e.getMessage());
 		}

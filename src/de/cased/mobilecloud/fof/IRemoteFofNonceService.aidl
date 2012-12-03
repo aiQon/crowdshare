@@ -16,7 +16,7 @@ interface IRemoteFofNonceService {
 	 *
 	 * @return Whether successful.
 	 */
-	boolean initEngine();
+	boolean initEngine(boolean nonces);
 	
 	/**
 	 * Performs the server step of De Christopharo's Private Set Intersection

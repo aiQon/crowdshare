@@ -25,8 +25,8 @@ import de.cased.mobilecloud.NonceEntries;
 import de.cased.mobilecloud.RegistrationNoncePoster;
 import de.cased.mobilecloud.facebook.SessionStore;
 
-public class FofNonceRegistrationEngine implements
-		IRemoteFofRegistrationService {
+public class FofNonceRegistrationEngine extends
+		IRemoteFofRegistrationService.Stub {
 
 	private Context context;
 	private String persistOwnLocation;
@@ -44,15 +44,13 @@ public class FofNonceRegistrationEngine implements
 	@Override
 	public IBinder asBinder() {
 		// TODO Auto-generated method stub
-		return (IBinder) this;
+		return this;
 	}
 
 	/**
 	 * Clears old nonces if available and possible, generates a new nonce, posts
 	 * it on the user's wall and stores it locally.
 	 *
-	 * @param authToken
-	 *            The Facebook token reqired to access the own stream.
 	 * @param appId
 	 *            The appId on which behalf to post.
 	 * @param persistLocation
@@ -60,7 +58,7 @@ public class FofNonceRegistrationEngine implements
 	 * @return
 	 */
 	@Override
-	public boolean register(String authToken, String appId)
+	public boolean register(String appId)
 			throws RemoteException {
 		try {
 			RegistrationNoncePoster poster = new RegistrationNoncePoster(appId,

@@ -19,13 +19,17 @@ import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
  * @author stas
  *
  */
-public class FofNonceEngine implements IRemoteFofNonceService {
+public class FofNonceEngine extends IRemoteFofNonceService.Stub {
 
 	private static String TAG = "FofEngine";
 
 	private Context context;
 	private String meLocation;
-	private String nonceLocation;
+	private String friendsLocation;
+
+	private String meNonceLocation;
+	private String friendsNonceLocation;
+
 	private String me;
 	private List<String> friends;
 	private PrivateSetIntersectionCardinality intersection;
@@ -35,22 +39,36 @@ public class FofNonceEngine implements IRemoteFofNonceService {
 	private BigInteger Rs;
 
 
-	public FofNonceEngine(Context context, String meLocation, String nonceLocation) {
+	public FofNonceEngine(Context context, String meLocation,
+			String nonceLocation, String meNonceLocation,
+			String friendsNonceLocation) {
 		this.context = context;
 		this.meLocation = meLocation;
-		this.nonceLocation = nonceLocation;
+		this.friendsLocation = nonceLocation;
+		this.meNonceLocation = meNonceLocation;
+		this.friendsNonceLocation = friendsNonceLocation;
 	}
 
 	/**
 	 * Initializes the Friend-of-Friend Engine. Does not need to be called for
 	 * registration or updates.
 	 *
+	 * @param nonces
+	 *            tells whether we use nonces or plain Facebook IDs here. This
+	 *            only affects the loaded 'me' and 'friends' variables.
+	 *            Everything else is the same routine for both.
+	 *
 	 * @return Whether successful.
 	 */
 	@Override
-	public boolean initEngine() {
-		me = loadNonceMe(meLocation);
-		friends = loadLocalNonces(nonceLocation);
+	public boolean initEngine(boolean nonces) {
+		if (!nonces) {
+			me = loadFacebookIdMe(meLocation);
+			friends = loadLocalFriends(friendsLocation);
+		} else {
+			me = loadNonceMe(meNonceLocation);
+			friends = loadLocalNonces(friendsNonceLocation);
+		}
 		intersection = new PrivateSetIntersectionCardinality();
 		return me != null && !me.equals("") && friends != null;
 	}
@@ -99,7 +117,7 @@ public class FofNonceEngine implements IRemoteFofNonceService {
 	@Override
 	public ClientStepContainer clientStep(
 			ServerInitialStepContainer serverParams) {
-		loadLocalNonces(nonceLocation);
+		loadLocalNonces(friendsLocation);
 		if (hasFriends()) {
 			initClientVariables(serverParams);
 			computeRs();
@@ -124,7 +142,7 @@ public class FofNonceEngine implements IRemoteFofNonceService {
 	@Override
 	public ServerFinalStepContainer finalServerStep(
 			ClientStepContainer clientParams) {
-		intersection.setNumberOfClientFriends(clientParams.getFriends().length);
+		intersection.setNumberOfClientFriends(clientParams.getTs().length);
 		Boolean[] FOUND = new Boolean[1];
 		int commonFriends = intersection.server_round_3(
 				clientParams.getFriends(),
@@ -172,6 +190,11 @@ public class FofNonceEngine implements IRemoteFofNonceService {
 		return myInfo.get(0);
 	}
 
+	private String loadFacebookIdMe(String location) {
+		List<String> myInfo = Utilities.readFromFile(location, context);
+		return myInfo.get(0).substring(0, myInfo.get(0).indexOf(':'));
+	}
+
 	private List<String> loadLocalNonces(String localfriends) {
 
 		List<String> friends = new ArrayList<String>();
@@ -184,8 +207,22 @@ public class FofNonceEngine implements IRemoteFofNonceService {
 		return friends;
 	}
 
+	private List<String> loadLocalFriends(String location) {
+
+		friends = new ArrayList<String>();
+		List<String> friendList = Utilities.readFromFile(location, context);
+		for (String r1 : friendList) {
+			int colon = -1;
+			if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
+
+				friends.add(r1.substring(0, colon));
+			}
+		}
+		return friends;
+	}
+
 	@Override
 	public IBinder asBinder() {
-		return (IBinder) this;
+		return this;
 	}
 }

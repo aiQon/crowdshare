@@ -9,7 +9,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
@@ -18,6 +17,12 @@ import java.util.TimerTask;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSocket;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.protobuf.ByteString;
@@ -35,14 +40,16 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.KeepAlive;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.NeedPrivateSetIntersection;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionNACK;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse;
-import de.cased.mobilecloud.common.PeerCommunicationProtocol.PrivateSetIntersectionResponse.Builder;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.Quota;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.ResourceRequestGrantMessage;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRequest;
 import de.cased.mobilecloud.common.PeerCommunicationStateContext;
-import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
+import de.cased.mobilecloud.fof.ClientStepContainer;
+import de.cased.mobilecloud.fof.FofNonceService;
+import de.cased.mobilecloud.fof.IRemoteFofNonceService;
+import de.cased.mobilecloud.fof.ServerInitialStepContainer;
 
 public class ManagementClientHandler extends Thread{
 
@@ -69,12 +76,14 @@ public class ManagementClientHandler extends Thread{
 
 	private Status currentStatus;
 
-	private PrivateSetIntersectionCardinality setIntersection;
+//	private PrivateSetIntersectionCardinality setIntersection;
 	private List<String> friends;
-	private BigInteger Rs;
-	private byte[][] ts;
+	// private BigInteger Rs;
+	// private byte[][] ts;
 
 	private ResourceRequestManager rrManager;
+	// private Context context;
+	private IRemoteFofNonceService mIRemoteService;
 
 	/**
 	 * expects finished SSL handshake.
@@ -83,7 +92,7 @@ public class ManagementClientHandler extends Thread{
 	 */
 	public ManagementClientHandler(SSLSocket connection,
 			List<CapabilityItem> capabilities, RouteEntry entry,
-			PeerClientWorker peerClientWorker) {
+			PeerClientWorker peerClientWorker, Context context) {
 		Log.d(TAG, "entered ManagementClientHandler constructor");
 		socket = connection;
 		this.requestedCapabilities = capabilities;
@@ -108,7 +117,12 @@ public class ManagementClientHandler extends Thread{
 		}
 
 		backreference = peerClientWorker;
+		// this.context = context;
 		setCurrentStatus(Status.Offline);
+
+		context.bindService(new Intent(context, FofNonceService.class),
+				mConnection, Context.BIND_AUTO_CREATE);
+
 		try {
 			rrManager = new ResourceRequestManager(this);
 		} catch (NoIpqModuleException e) {
@@ -117,6 +131,27 @@ public class ManagementClientHandler extends Thread{
 		}
 
 	}
+
+	private ServiceConnection mConnection = new ServiceConnection() {
+		// Called when the connection with the service is established
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			// Following the example above for an AIDL interface,
+			// this gets an instance of the IRemoteInterface, which we can use
+			// to call on the service
+			mIRemoteService = IRemoteFofNonceService.Stub.asInterface(service);
+			synchronized (ManagementClientHandler.this) {
+				ManagementClientHandler.this.notifyAll();
+			}
+		}
+
+		// Called when the connection with the service disconnects unexpectedly
+		@Override
+		public void onServiceDisconnected(ComponentName className) {
+			Log.e(TAG, "Service has unexpectedly disconnected");
+			mIRemoteService = null;
+		}
+	};
 
 	private void buildProtocolReactions() {
 		protocolState = new PeerCommunicationStateContext();
@@ -176,78 +211,121 @@ public class ManagementClientHandler extends Thread{
 									setCurrentStatus(Status.Connecting);
 									Log.d(TAG,
 											"received NeedPrivateSetIntersection");
-									loadFriends(need.getNeedFBbWallNonces());
-									if(canProvideFriendInformation()){
-										initOwnSetIntersectionInstance();
-										performClientRound1(need
-												.getNeedFBbWallNonces());
 
-										int numberOfServerFriends = need
-												.getNumberOfFriends();
-										Log.d(TAG,
-												"number of server friends is "
-														+ numberOfServerFriends);
-										performClientStep(
-												need, numberOfServerFriends);
-									}else{
-										Log.d(TAG, "dont have a friend list");
+									while (mIRemoteService == null) {
+										try {
+											synchronized (ManagementClientHandler.this) {
+												ManagementClientHandler.this
+														.wait();
+											}
+										} catch (InterruptedException e) {
+											Log.d(TAG, e.getMessage());
+										}
 									}
+
+									try {
+										Log.d(TAG,
+												"Init client side service with nonces enabled:"
+														+ need.getNeedFBbWallNonces());
+										mIRemoteService.initEngine(need
+												.getNeedFBbWallNonces());
+										BigInteger[] a = extractA(need);
+										BigInteger ao = extractA0(need);
+										ServerInitialStepContainer serverStep = new ServerInitialStepContainer(
+												ao, a);
+										ClientStepContainer clientContainer = mIRemoteService.clientStep(serverStep);
+
+										PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
+												.newBuilder();
+										setATick(clientContainer.getFriends(), responseBuilder);
+										setTs(clientContainer.getTs(),
+												responseBuilder);
+										ByteString capsule = ByteString
+												.copyFrom(clientContainer.getMe().toByteArray());
+										responseBuilder.setATICK(capsule);
+										PrivateSetIntersectionResponse response = responseBuilder
+												.build();
+										sendMessage(response);
+										Log.d(TAG, "send response");
+
+
+									} catch (RemoteException e) {
+										Log.d(TAG, e.getMessage());
+									}
+
+//									loadFriends(need.getNeedFBbWallNonces());
+//									if(canProvideFriendInformation()){
+//										initOwnSetIntersectionInstance();
+//										performClientRound1(need
+//												.getNeedFBbWallNonces());
+//
+//										int numberOfServerFriends = need
+//												.getNumberOfFriends();
+//										Log.d(TAG,
+//												"number of server friends is "
+//														+ numberOfServerFriends);
+//										performClientStep(
+//												need, numberOfServerFriends);
+//									}else{
+//										Log.d(TAG, "dont have a friend list");
+//									}
 								}
 					}
 
-							private boolean canProvideFriendInformation() {
-								if (friends.size() > 0) {
-									return true;
-								} else {
-									return false;
-								}
-							}
+							// private boolean canProvideFriendInformation() {
+							// if (friends.size() > 0) {
+							// return true;
+							// } else {
+							// return false;
+							// }
+							// }
 
-							private void performClientStep(
-							NeedPrivateSetIntersection need,
-							int numberOfServerFriends) {
-						BigInteger[] a = extractA(need);
-								BigInteger ao = extractA0(need);
+//							private void performClientStep(
+//							NeedPrivateSetIntersection need,
+//							int numberOfServerFriends) {
+//						BigInteger[] a = extractA(need);
+//								BigInteger ao = extractA0(need);
+//
+//								Log.d(TAG, "extracted A");
+//								for (BigInteger aPart : a) {
+//									Log.d(TAG, aPart.toString());
+//								}
+//
+//						setIntersection
+//								.setNumberOfServerFriends(numberOfServerFriends);
+//
+//								BigInteger[] a_tick = new BigInteger[numberOfServerFriends];
+//								BigInteger[] A_TICK = new BigInteger[1];
+//						setIntersection.client_round_2(a, Rs,
+// a_tick,
+//										ao, A_TICK);
+//
+//								Log.d(TAG, "a_tick");
+//								for (BigInteger aPart : a_tick) {
+//									Log.d(TAG, aPart.toString());
+//								}
+//								PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
+//										.newBuilder();
+//								setATick(a_tick, responseBuilder);
+//								setTs(responseBuilder);
+//								setATICK(A_TICK, responseBuilder);
+//								PrivateSetIntersectionResponse response = responseBuilder
+//										.build();
+//								sendMessage(response);
+//								Log.d(TAG, "send response");
+//
+//					}
 
-								Log.d(TAG, "extracted A");
-								for (BigInteger aPart : a) {
-									Log.d(TAG, aPart.toString());
-								}
 
-						setIntersection
-								.setNumberOfServerFriends(numberOfServerFriends);
+//							private void setATICK(BigInteger[] a_TICK,
+//									Builder responseBuilder) {
+//								ByteString capsule = ByteString
+//										.copyFrom(a_TICK[0].toByteArray());
+//								responseBuilder.setATICK(capsule);
+//							}
 
-								BigInteger[] a_tick = new BigInteger[numberOfServerFriends];
-								BigInteger[] A_TICK = new BigInteger[1];
-						setIntersection.client_round_2(a, Rs,
- a_tick,
-										ao, A_TICK);
-
-								Log.d(TAG, "a_tick");
-								for (BigInteger aPart : a_tick) {
-									Log.d(TAG, aPart.toString());
-								}
-								PrivateSetIntersectionResponse.Builder responseBuilder = PrivateSetIntersectionResponse
-										.newBuilder();
-								setATick(a_tick, responseBuilder);
-								setTs(responseBuilder);
-								setATICK(A_TICK, responseBuilder);
-								PrivateSetIntersectionResponse response = responseBuilder
-										.build();
-								sendMessage(response);
-								Log.d(TAG, "send response");
-
-					}
-
-
-							private void setATICK(BigInteger[] a_TICK,
-									Builder responseBuilder) {
-								ByteString capsule = ByteString
-										.copyFrom(a_TICK[0].toByteArray());
-								responseBuilder.setATICK(capsule);
-							}
-
-					private void setTs(
+							private void setTs(
+									byte[][] ts,
 							PrivateSetIntersectionResponse.Builder responseBuilder) {
 								Log.d(TAG, "ts content");
 						for (byte[] ts_element : ts) {
@@ -295,26 +373,26 @@ public class ManagementClientHandler extends Thread{
 
 	}
 
-	protected void performClientRound1(boolean needNonces) {
-		ts = new byte[friends.size()][];
-		byte[][] s = new byte[friends.size()][];
+//	protected void performClientRound1(boolean needNonces) {
+//		ts = new byte[friends.size()][];
+//		byte[][] s = new byte[friends.size()][];
+//
+//		for (int i = 0; i < friends.size(); i++) {
+//			BigInteger friendInt = new BigInteger(friends.get(i),
+//					needNonces ? 16 : 10);
+//			s[i] = friendInt.toByteArray();
+//			Log.d(TAG, "adding " + friendInt.toString());
+//		}
+//
+//		Rs = setIntersection.client_round_1(s, ts);
+//		Log.d(TAG, "calculated Rs:" + Rs.toString());
+//	}
 
-		for (int i = 0; i < friends.size(); i++) {
-			BigInteger friendInt = new BigInteger(friends.get(i),
-					needNonces ? 16 : 10);
-			s[i] = friendInt.toByteArray();
-			Log.d(TAG, "adding " + friendInt.toString());
-		}
-
-		Rs = setIntersection.client_round_1(s, ts);
-		Log.d(TAG, "calculated Rs:" + Rs.toString());
-	}
-
-	protected void initOwnSetIntersectionInstance() {
-		setIntersection = new PrivateSetIntersectionCardinality();
-		setIntersection.setNumberOfClientFriends(friends.size());
-		Log.d(TAG, "set number of own friends to " + friends.size());
-	}
+//	protected void initOwnSetIntersectionInstance() {
+//		setIntersection = new PrivateSetIntersectionCardinality();
+//		setIntersection.setNumberOfClientFriends(friends.size());
+//		Log.d(TAG, "set number of own friends to " + friends.size());
+//	}
 
 	// private int loadFriends() {
 	// String r1Destination = config.getProperty("friendlist_r1");
@@ -333,43 +411,43 @@ public class ManagementClientHandler extends Thread{
 	// return friends.size();
 	// }
 
-	private int loadFriends(boolean noncesNeeded) {
-		if (!noncesNeeded)
-			return loadLocalFriends();
-		else
-			return loadLocalNonces();
-	}
-
-	private int loadLocalNonces() {
-		String localfriends = config.getProperty("nonce_location");
-
-		friends = new ArrayList<String>();
-		List<String> friendList = Utilities.readFromFile(localfriends,
-				config.getApp());
-		for (String r1 : friendList) {
-			if (r1 != null && !r1.equals("")) {
-
-				friends.add(r1);
-			}
-		}
-		return friends.size();
-	}
-
-	private int loadLocalFriends() {
-		String localfriends = config.getProperty("localfriends");
-
-		friends = new ArrayList<String>();
-		List<String> friendList = Utilities.readFromFile(localfriends,
-				config.getApp());
-		for (String r1 : friendList) {
-			int colon = -1;
-			if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
-
-				friends.add(r1.substring(0, colon));
-			}
-		}
-		return friends.size();
-	}
+	// private int loadFriends(boolean noncesNeeded) {
+	// if (!noncesNeeded)
+	// return loadLocalFriends();
+	// else
+	// return loadLocalNonces();
+	// }
+	//
+	// private int loadLocalNonces() {
+	// String localfriends = config.getProperty("nonce_location");
+	//
+	// friends = new ArrayList<String>();
+	// List<String> friendList = Utilities.readFromFile(localfriends,
+	// config.getApp());
+	// for (String r1 : friendList) {
+	// if (r1 != null && !r1.equals("")) {
+	//
+	// friends.add(r1);
+	// }
+	// }
+	// return friends.size();
+	// }
+	//
+	// private int loadLocalFriends() {
+	// String localfriends = config.getProperty("localfriends");
+	//
+	// friends = new ArrayList<String>();
+	// List<String> friendList = Utilities.readFromFile(localfriends,
+	// config.getApp());
+	// for (String r1 : friendList) {
+	// int colon = -1;
+	// if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
+	//
+	// friends.add(r1.substring(0, colon));
+	// }
+	// }
+	// return friends.size();
+	// }
 
 	private void finalStateReaction() {
 		protocolState.setStateAction(

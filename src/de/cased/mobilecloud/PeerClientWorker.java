@@ -16,6 +16,7 @@ import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.google.protobuf.Message;
@@ -46,7 +47,7 @@ public class PeerClientWorker extends Thread implements
 	private boolean isConnected = false;
 
 	private PeerClientCommunicator communicator;
-
+	private Context context;
 
 
 
@@ -91,6 +92,7 @@ public class PeerClientWorker extends Thread implements
 				Integer.parseInt(config.getProperties().getProperty(
 						"management_connections"));
 		this.communicator = communicator;
+		this.context = communicator;
 
 
 	}
@@ -374,7 +376,7 @@ public class PeerClientWorker extends Thread implements
 	private void initiateProtocol(SSLSocket connection, RouteEntry entry) {
 		Log.d(TAG, "initiating Protocol for management connection");
 		ManagementClientHandler handler = new ManagementClientHandler(
-				connection, requestedCapabilties, entry, this);
+				connection, requestedCapabilties, entry, this, context);
 		managementConnections.add(handler);
 		handler.start();
 	}

@@ -19,6 +19,12 @@ import java.util.TimerTask;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.protobuf.ByteString;
@@ -44,7 +50,11 @@ import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNGranted;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRefused;
 import de.cased.mobilecloud.common.PeerCommunicationProtocol.VPNRequest;
 import de.cased.mobilecloud.common.PeerCommunicationStateContext;
-import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
+import de.cased.mobilecloud.fof.ClientStepContainer;
+import de.cased.mobilecloud.fof.FofNonceService;
+import de.cased.mobilecloud.fof.IRemoteFofNonceService;
+import de.cased.mobilecloud.fof.ServerFinalStepContainer;
+import de.cased.mobilecloud.fof.ServerInitialStepContainer;
 import ext.org.bouncycastle.operator.ContentVerifierProvider;
 import ext.org.bouncycastle.operator.OperatorCreationException;
 import ext.org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
@@ -81,29 +91,58 @@ public class ManagementServerHandler extends Thread {
 
 	private X509Certificate peerCertificate;
 
-	private PrivateSetIntersectionCardinality setIntersection;
+	// private PrivateSetIntersectionCardinality setIntersection;
 	// private BigInteger Rc;
-	private BigInteger Rc_inv;
+	// private BigInteger Rc_inv;
 
-	private List<String> friends;
-	private String me;
+	// private List<String> friends;
+	// private String me;
 
 	private long tsStart;
 	private long tsStop;
 
 	private String vpnAddress;
 
-	public void setPeerCertificate(X509Certificate peerCert) {
-		this.peerCertificate = peerCert;
-	}
+	// private Context context;
+	private IRemoteFofNonceService mIRemoteService;
 
-	public ManagementServerHandler(SSLSocket client, PeerServerWorker backref){
+	public ManagementServerHandler(SSLSocket client, PeerServerWorker backref,
+			Context context) {
 		this.socket = client;
 		running = true;
 		backreference = backref;
 		config = RuntimeConfiguration.getInstance();
+		// this.context = context;
 		buildProtocolReactions();
+		context.bindService(new Intent(context, FofNonceService.class),
+				mConnection,
+				Context.BIND_AUTO_CREATE);
 	}
+
+	public void setPeerCertificate(X509Certificate peerCert) {
+		this.peerCertificate = peerCert;
+	}
+
+	private ServiceConnection mConnection = new ServiceConnection() {
+		// Called when the connection with the service is established
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			// Following the example above for an AIDL interface,
+			// this gets an instance of the IRemoteInterface, which we can use
+			// to call on the service
+			mIRemoteService = IRemoteFofNonceService.Stub.asInterface(service);
+			synchronized (ManagementServerHandler.this) {
+				ManagementServerHandler.this.notifyAll();
+			}
+		}
+
+		// Called when the connection with the service disconnects unexpectedly
+		@Override
+		public void onServiceDisconnected(ComponentName className) {
+			Log.e(TAG, "Service has unexpectedly disconnected");
+			mIRemoteService = null;
+		}
+	};
 
 	private void buildProtocolReactions() {
 		protocolState = new PeerCommunicationStateContext();
@@ -133,47 +172,62 @@ public class ManagementServerHandler extends Thread {
 									List<ByteString> tsList = received
 											.getTsList();
 									BigInteger ATICK = extractATICK(received);
-									setIntersection
-											.setNumberOfClientFriends(tsList
-													.size());
-
 									BigInteger[] aTick = extractATick(aTickList);
 									byte[][] ts = extractTs(tsList);
-									Boolean[] FOUND = new Boolean[1];
-									int found = setIntersection.server_round_3(
-											aTick,
- ts, Rc_inv, ATICK, FOUND);
-									tsStop = System.currentTimeMillis();
 
-									long totalTime = tsStop - tsStart;
-									Log.d(TAG, "total time:" + totalTime
-											+ " ms");
+									ClientStepContainer container = new ClientStepContainer(
+											ts, ATICK, aTick);
 
-									int requiredFoFs = config
-											.getPreferences()
-											.getInt(SecuritySetupActivity.ENABLE_FOF_TETHERING,
-													0);
+									try {
+										ServerFinalStepContainer result = mIRemoteService
+												.finalServerStep(container);
 
-									Log.d(TAG, "FOUND[0] is " + FOUND[0]);
+										tsStop = System.currentTimeMillis();
 
-									if (FOUND[0]
-											&& config
-													.getPreferences()
-													.getBoolean(
-															SecuritySetupActivity.ENABLE_DIRECT_FRIENDS_TETHERING,
-															false)) {
-										Log.d(TAG, "got direct friend");
-										sendPositiveResponse();
-									} else if (requiredFoFs > 0
-											&& found >= requiredFoFs) {
-										Log.d(TAG,
-												"got enough indirect friends");
-										sendPositiveResponse();
-									} else {
-										Log.d(TAG,
-												"dont have enough friends nor a direct friend");
-										sendNegativeRespnse();
+										long totalTime = tsStop - tsStart;
+										Log.d(TAG, "total time:" + totalTime
+												+ " ms");
+
+										int requiredFoFs = config
+												.getPreferences()
+												.getInt(SecuritySetupActivity.ENABLE_FOF_TETHERING,
+														0);
+
+										Log.d(TAG, "Direct Friend is "
+														+ result.isDirectFriend());
+
+										if (result.isDirectFriend()
+												&& config
+														.getPreferences()
+														.getBoolean(
+																SecuritySetupActivity.ENABLE_DIRECT_FRIENDS_TETHERING,
+																false)) {
+											Log.d(TAG, "got direct friend");
+											sendPositiveResponse();
+										} else if (requiredFoFs > 0
+												&& result.getCommonFriends() >= requiredFoFs) {
+											Log.d(TAG,
+													"got enough indirect friends");
+											sendPositiveResponse();
+										} else {
+											Log.d(TAG,
+													"dont have enough friends nor a direct friend");
+											sendNegativeRespnse();
+										}
+
+									} catch (RemoteException e) {
+										Log.d(TAG, e.getMessage());
 									}
+
+									// Boolean[] FOUND = new Boolean[1];
+									// setIntersection
+									// .setNumberOfClientFriends(tsList
+									// .size());
+
+									// int found =
+									// setIntersection.server_round_3(
+									// aTick,
+									// ts, Rc_inv, ATICK, FOUND);
 
 								}
 							}
@@ -239,11 +293,11 @@ public class ManagementServerHandler extends Thread {
 		}
 	}
 
-	private boolean isAlreadyGranted(long id) {
-		synchronized (grantedPacketIDs) {
-			return grantedPacketIDs.contains(id);
-		}
-	}
+	// private boolean isAlreadyGranted(long id) {
+	// synchronized (grantedPacketIDs) {
+	// return grantedPacketIDs.contains(id);
+	// }
+	// }
 
 	private class ResourceRequestAnalyzer implements Runnable {
 		@Override
@@ -271,8 +325,6 @@ public class ManagementServerHandler extends Thread {
 						try {
 							ResourceRequest request = new ResourceRequest(
 									tempTarget);
-							// TODO: verify signature
-							// need the public key of the signer
 
 							SSLSession session = socket.getSession();
 							Log.d(TAG,
@@ -639,6 +691,16 @@ public class ManagementServerHandler extends Thread {
 	private void reactOnHello(Hello msg) {
 		Log.d(TAG, "reacting on hello message");
 
+		while (mIRemoteService == null) {
+			synchronized (this) {
+				try {
+					wait();
+				} catch (InterruptedException e) {
+					Log.d(TAG, e.getMessage());
+				}
+			}
+		}
+
 		// Branching here: either its anonymous or server side FB friend list
 		// then just send a hello
 		// Response or if its private set intersection, send a
@@ -657,13 +719,44 @@ public class ManagementServerHandler extends Thread {
 
 
 		if (christofaroWithIDs || christofaroWithNonces) {
-			Log.d(TAG, "start private set intersection procedure");
-			loadMe(christofaroWithNonces);
-			loadFriends(christofaroWithNonces);
+			try {
+				Log.d(TAG, "start private set intersection procedure");
+				mIRemoteService.initEngine(christofaroWithNonces);
+			} catch (RemoteException e) {
+				Log.d(TAG, e.getMessage());
+			}
+
+			// loadMe(christofaroWithNonces);
+			// loadFriends(christofaroWithNonces);
 			tsStart = System.currentTimeMillis();
-			setIntersection = new PrivateSetIntersectionCardinality();
-			setIntersection.setNumberOfServerFriends(friends.size());
-			serverInitialStep(christofaroWithNonces);
+			// setIntersection = new PrivateSetIntersectionCardinality();
+			// setIntersection.setNumberOfServerFriends(friends.size());
+//			serverInitialStep(christofaroWithNonces);
+			try {
+				ServerInitialStepContainer initialStep = mIRemoteService
+						.serverInitialStep();
+
+				NeedPrivateSetIntersection.Builder needBuilder = NeedPrivateSetIntersection
+						.newBuilder();
+				// List<ByteString> aEncoded = new ArrayList<ByteString>();
+				for (BigInteger bigI : initialStep.getFriends()) {
+					byte[] temp = bigI.toByteArray();
+					ByteString bs = ByteString.copyFrom(temp);
+					needBuilder.addA(bs);
+				}
+
+				ByteString aoCapsule = ByteString.copyFrom(initialStep.getMe()
+						.toByteArray());
+				needBuilder.setA0(aoCapsule);
+
+				// needBuilder.setNumberOfFriends(friends.size());
+				needBuilder.setNeedFBbWallNonces(christofaroWithNonces);
+
+				sendMessage(needBuilder.build());
+
+			} catch (RemoteException e) {
+				Log.d(TAG, e.getMessage());
+			}
 		} else {
 
 			// Capability capa = msg.getCapabilities();
@@ -689,97 +782,98 @@ public class ManagementServerHandler extends Thread {
 	}
 
 
-	private void loadMe(boolean needNonce) {
-		if (!needNonce)
-			loadFacebookIdMe();
-		else
-			loadNonceMe();
-	}
+	// private void loadMe(boolean needNonce) {
+	// if (!needNonce)
+	// loadFacebookIdMe();
+	// else
+	// loadNonceMe();
+	// }
 
-	private void loadNonceMe() {
-		String localme = config.getProperty("menonce");
-		List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
-		me = myInfo.get(0);
+	// private void loadNonceMe() {
+	// String localme = config.getProperty("menonce");
+	// List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
+	// me = myInfo.get(0);
+	//
+	// }
+	//
+	// private void loadFacebookIdMe() {
+	// String localme = config.getProperty("myInfo");
+	// List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
+	// me = myInfo.get(0).substring(0, myInfo.get(0).indexOf(':'));
+	// }
 
-	}
+	// private int loadFriends(boolean noncesNeeded) {
+	// if (!noncesNeeded)
+	// return loadLocalFriends();
+	// else
+	// return loadLocalNonces();
+	// }
 
-	private void loadFacebookIdMe() {
-		String localme = config.getProperty("myInfo");
-		List<String> myInfo = Utilities.readFromFile(localme, config.getApp());
-		me = myInfo.get(0).substring(0, myInfo.get(0).indexOf(':'));
-	}
+	// private int loadLocalNonces() {
+	// String localfriends = config.getProperty("nonce_location");
+	//
+	// friends = new ArrayList<String>();
+	// List<String> friendList = Utilities.readFromFile(localfriends,
+	// config.getApp());
+	// for (String r1 : friendList) {
+	// if (r1 != null && !r1.equals("")) {
+	//
+	// friends.add(r1);
+	// }
+	// }
+	// return friends.size();
+	// }
 
-	private int loadFriends(boolean noncesNeeded) {
-		if (!noncesNeeded)
-			return loadLocalFriends();
-		else
-			return loadLocalNonces();
-	}
+	// private int loadLocalFriends() {
+	// String localfriends = config.getProperty("localfriends");
+	//
+	// friends = new ArrayList<String>();
+	// List<String> friendList = Utilities.readFromFile(localfriends,
+	// config.getApp());
+	// for (String r1 : friendList) {
+	// int colon = -1;
+	// if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
+	//
+	// friends.add(r1.substring(0, colon));
+	// }
+	// }
+	// return friends.size();
+	// }
 
-	private int loadLocalNonces() {
-		String localfriends = config.getProperty("nonce_location");
-
-		friends = new ArrayList<String>();
-		List<String> friendList = Utilities.readFromFile(localfriends,
-				config.getApp());
-		for (String r1 : friendList) {
-			if (r1 != null && !r1.equals("")) {
-
-				friends.add(r1);
-			}
-		}
-		return friends.size();
-	}
-
-	private int loadLocalFriends() {
-		String localfriends = config.getProperty("localfriends");
-
-		friends = new ArrayList<String>();
-		List<String> friendList = Utilities.readFromFile(localfriends,
-				config.getApp());
-		for (String r1 : friendList) {
-			int colon = -1;
-			if (r1 != null && !r1.equals("") && (colon = r1.indexOf(":")) > 0) {
-
-				friends.add(r1.substring(0, colon));
-			}
-		}
-		return friends.size();
-	}
-
-	private void serverInitialStep(boolean needNonces) {
-		BigInteger[] a = new BigInteger[friends.size()];
-		byte[][] c = new byte[friends.size()][];
-		byte[] C = new BigInteger(me, needNonces ? 16 : 10).toByteArray();
-		BigInteger[] A = new BigInteger[1];
-
-		for (int i = 0; i < friends.size(); i++) {
-			BigInteger friendInt = new BigInteger(friends.get(i),
-					needNonces ? 16 : 10);
-			Log.d(TAG, "added friend " + friends.get(i));
-			c[i] = friendInt.toByteArray();
-		}
-		BigInteger Rc = setIntersection.server_round_1(c, a, C, A);
-
-		Rc_inv = setIntersection.server_round_2(Rc);
-
-		NeedPrivateSetIntersection.Builder needBuilder = NeedPrivateSetIntersection
-				.newBuilder();
-		// List<ByteString> aEncoded = new ArrayList<ByteString>();
-		for (BigInteger bigI : a) {
-			byte[] temp = bigI.toByteArray();
-			ByteString bs = ByteString.copyFrom(temp);
-			needBuilder.addA(bs);
-		}
-
-		ByteString aoCapsule = ByteString.copyFrom(A[0].toByteArray());
-		needBuilder.setA0(aoCapsule);
-
-		needBuilder.setNumberOfFriends(friends.size());
-		needBuilder.setNeedFBbWallNonces(needNonces);
-
-		sendMessage(needBuilder.build());
-	}
+	// private void serverInitialStep(boolean needNonces) {
+	// BigInteger[] a = new BigInteger[friends.size()];
+	// byte[][] c = new byte[friends.size()][];
+	// byte[] C = new BigInteger(me, needNonces ? 16 : 10).toByteArray();
+	// BigInteger[] A = new BigInteger[1];
+	//
+	// for (int i = 0; i < friends.size(); i++) {
+	// BigInteger friendInt = new BigInteger(friends.get(i),
+	// needNonces ? 16 : 10);
+	// Log.d(TAG, "added friend " + friends.get(i));
+	// c[i] = friendInt.toByteArray();
+	// }
+	// BigInteger Rc = setIntersection.server_round_1(c, a, C, A);
+	//
+	// Rc_inv = setIntersection.server_round_2(Rc);
+	//
+	// NeedPrivateSetIntersection.Builder needBuilder =
+	// NeedPrivateSetIntersection
+	// .newBuilder();
+	// // List<ByteString> aEncoded = new ArrayList<ByteString>();
+	// for (BigInteger bigI : a) {
+	// byte[] temp = bigI.toByteArray();
+	// ByteString bs = ByteString.copyFrom(temp);
+	// needBuilder.addA(bs);
+	// }
+	//
+	// ByteString aoCapsule = ByteString.copyFrom(A[0].toByteArray());
+	// needBuilder.setA0(aoCapsule);
+	//
+	// needBuilder.setNumberOfFriends(friends.size());
+	// needBuilder.setNeedFBbWallNonces(needNonces);
+	//
+	// sendMessage(needBuilder.build());
+	// }
 
 	private Quota getQuota() {
 		// TODO implement

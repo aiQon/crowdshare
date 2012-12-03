@@ -28,13 +28,15 @@ public class PeerServerWorker extends Thread implements
 	private List<ManagementServerHandler> handler;
 	private SSLServerSocket server;
 	private PowerManager.WakeLock wl;
+	private Context context;
 
 	// private PeerServerWorker me = this;
 
-	public PeerServerWorker() {
+	public PeerServerWorker(Context context) {
 		handler = new ArrayList<ManagementServerHandler>();
 		config = RuntimeConfiguration.getInstance();
 		running = true;
+		this.context = context;
 	}
 
 	@Override
@@ -63,7 +65,7 @@ public class PeerServerWorker extends Thread implements
 				client.setNeedClientAuth(true);
 				Log.d(TAG, "Accepted connection");
 				final ManagementServerHandler handle = new ManagementServerHandler(
-						client, PeerServerWorker.this);
+						client, PeerServerWorker.this, context);
 				handler.add(handle);
 				client.addHandshakeCompletedListener(new HandshakeCompletedListener() {
 
@@ -152,7 +154,7 @@ public class PeerServerWorker extends Thread implements
 		handler.remove(handle);
 	}
 
-	public void shutdownMobileCloudServer() {
+	public synchronized void shutdownMobileCloudServer() {
 
 		for (ManagementServerHandler handle : handler) {
 			handle.stopMe();
@@ -160,19 +162,21 @@ public class PeerServerWorker extends Thread implements
 			deleteHandler(handle); // dirty, isnt it?
 		}
 		running = false;
-		try {
+		if (server != null) {
+			try {
 
-			boolean isBound = server.isBound();
-			Log.d(TAG, "server is still bound before close:" + isBound);
-			server.close();
-			isBound = server.isBound();
-			Log.d(TAG, "server is still bound after close:" + isBound);
+				boolean isBound = server.isBound();
+				Log.d(TAG, "server is still bound before close:" + isBound);
+				server.close();
+				isBound = server.isBound();
+				Log.d(TAG, "server is still bound after close:" + isBound);
 
-		} catch (IOException e) {
+			} catch (IOException e) {
 
-		} finally {
-			server = null;
-			// releaseWakeLock();
+			} finally {
+				server = null;
+				// releaseWakeLock();
+			}
 		}
 	}
 }

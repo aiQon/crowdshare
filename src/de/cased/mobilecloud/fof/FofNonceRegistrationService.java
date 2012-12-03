@@ -15,7 +15,7 @@ public class FofNonceRegistrationService extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		return (IBinder) new FofNonceRegistrationEngine(this,
+		return new FofNonceRegistrationEngine(this,
 				config.getProperty("menonce"),
 				config.getProperty("nonce_location"));
 	}

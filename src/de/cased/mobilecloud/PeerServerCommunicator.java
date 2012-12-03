@@ -20,7 +20,7 @@ public class PeerServerCommunicator extends Service {
 		config = RuntimeConfiguration.getInstance();
 		// try {
 		// config.setSslContex(config.createSSLContext(false));
-		server = new PeerServerWorker();
+		server = new PeerServerWorker(this);
 		// } catch (UnrecoverableKeyException e) {
 		// Log.e(TAG, e.getMessage(), e);
 		// } catch (KeyManagementException e) {
@@ -48,7 +48,7 @@ public class PeerServerCommunicator extends Service {
 		Log.d(TAG, "PeerServerCommunicator starting");
 		if (server != null && server.isAlive()) {
 			server.shutdownMobileCloudServer();
-			server = new PeerServerWorker();
+			server = new PeerServerWorker(this);
 		}
 		server.start();
 	}

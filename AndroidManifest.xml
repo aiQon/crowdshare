@@ -270,8 +270,13 @@
 	    
 	    
 	    <service
-	         android:exported="true"
+	        android:exported="true"
 	         android:name="de.cased.mobilecloud.fof.FofNonceRegistrationService">
+		</service>
+		
+	    <service
+	        android:exported="true"
+	        android:name="de.cased.mobilecloud.fof.FofNonceService">
 		</service>
 	    
 	    

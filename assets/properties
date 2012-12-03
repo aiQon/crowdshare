@@ -13,8 +13,8 @@ dh_loc = dh.pem
 ssl_trust_store_pw = mobilecloud
 ssl_key_store_pw = mobilecloud
 
-registration_server=94.79.155.22
-update_server=94.79.155.22
+registration_server=95.222.198.180
+update_server=95.222.198.180
 registration_port=2222
 update_port=2223
 

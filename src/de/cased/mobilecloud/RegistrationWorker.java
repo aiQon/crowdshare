@@ -30,8 +30,13 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 import android.app.ProgressDialog;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.protobuf.ByteString;
@@ -42,6 +47,8 @@ import de.cased.mobilecloud.common.RegistrationProtocol.CertificateResponse;
 import de.cased.mobilecloud.common.RegistrationProtocol.DHParams;
 import de.cased.mobilecloud.common.RegistrationProtocol.Friendlist;
 import de.cased.mobilecloud.common.RegistrationStateContext;
+import de.cased.mobilecloud.fof.FofNonceRegistrationService;
+import de.cased.mobilecloud.fof.IRemoteFofRegistrationService;
 import ext.org.bouncycastle.asn1.x500.X500Name;
 import ext.org.bouncycastle.asn1.x500.X500NameBuilder;
 import ext.org.bouncycastle.asn1.x500.style.BCStyle;
@@ -280,11 +287,7 @@ public class RegistrationWorker extends AbstractServerWorker {
 	public void run() {
 
 		try {
-			RegistrationNoncePoster poster = new RegistrationNoncePoster(
-					config.getProperty("appid"),
-					config.getApp());
-			String nonce = poster.postNonce();
-			persistNonce(nonce);
+			postNonce();
 			socket = connectToServer();
 			startProtocol();
 
@@ -297,6 +300,60 @@ public class RegistrationWorker extends AbstractServerWorker {
 		if (dialog != null && dialog.isShowing()) {
 			   dialog.dismiss();
 		}
+	}
+
+	IRemoteFofRegistrationService mIRemoteService;
+	private ServiceConnection mConnection = new ServiceConnection() {
+		// Called when the connection with the service is established
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			mIRemoteService = IRemoteFofRegistrationService.Stub
+					.asInterface(service);
+			synchronized (RegistrationWorker.this) {
+				RegistrationWorker.this.notifyAll();
+			}
+		}
+
+		// Called when the connection with the service disconnects unexpectedly
+		@Override
+		public void onServiceDisconnected(ComponentName className) {
+			Log.e(TAG, "Service has unexpectedly disconnected");
+			mIRemoteService = null;
+		}
+	};
+
+	private void postNonce() throws FacebookAuthenticationException {
+
+		Intent serviceIntent = new Intent(context,
+				FofNonceRegistrationService.class);
+		// serviceIntent.setClassName("de.cased.mobilecloud.fof",
+		// "de.cased.mobilecloud.fof.FofNonceRegistrationService");
+		context.bindService(serviceIntent, mConnection,
+				Context.BIND_AUTO_CREATE);
+
+		while (mIRemoteService == null) {
+			try {
+				synchronized (RegistrationWorker.this) {
+					Log.d(TAG, "waiting for FofRegistrationService to be bound");
+					wait();
+				}
+			} catch (InterruptedException e) {
+				Log.d(TAG, e.getMessage());
+			}
+		}
+
+		Log.d(TAG, "FofRegistrationService bound, calling it");
+
+		try {
+			mIRemoteService.register(config.getProperty("appid"));
+		} catch (RemoteException e) {
+			Log.d(TAG, e.getMessage());
+		}
+		// RegistrationNoncePoster poster = new RegistrationNoncePoster(
+		// config.getProperty("appid"),
+		// config.getApp());
+		// String nonce = poster.postNonce();
+		// persistNonce(nonce);
 	}
 
 	private void persistNonce(String nonce) {
