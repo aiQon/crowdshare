@@ -156,12 +156,4 @@
         android:layout_marginBottom="18dp"
         android:src="@drawable/login_button" />
 
-    <Button
-        android:id="@+id/algo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:text="perform algo" />
-
 </RelativeLayout>

@@ -82,7 +82,6 @@ import de.cased.mobilecloud.SecuritySetupActivity;
 import de.cased.mobilecloud.Status;
 import de.cased.mobilecloud.Utilities;
 import de.cased.mobilecloud.facebook.SessionStore;
-import de.cased.mobilecloud.setintersection.PrivateSetIntersectionCardinality;
 import ext.org.bouncycastle.openssl.PEMReader;
 
 /**
@@ -304,15 +303,6 @@ public class Main extends Activity implements ConnectionStateListener {
 
 		Log.d(TAG, "button session token is:" + facebook.getAccessToken());
 
-
-		algoButton = (Button) findViewById(R.id.algo);
-		algoButton.setOnClickListener(new OnClickListener() {
-
-			@Override
-			public void onClick(View v) {
-				PrivateSetIntersectionCardinality.doComputation();
-			}
-		});
 
 		// if (SessionStore.restore(facebook, this)) {
 		// Log.d(TAG, "performing request");
