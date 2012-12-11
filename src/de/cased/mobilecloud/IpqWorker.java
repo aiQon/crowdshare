@@ -50,6 +50,7 @@ public class IpqWorker extends Thread{
 				Log.e(TAG, e.getMessage(), e);
 			}
 		}
+		Log.d(TAG, "bound to domain socket");
 	}
 
 	@Override

@@ -16,7 +16,7 @@
 #define BUFFSIZE 4096
 #define IPCOMP(addr, n) ((addr >> (24 - 8 * n)) & 0xFF)
 #define TIMEVALIDITY 600
-#define CLEANER_INTERVAL 300
+#define CLEANER_INTERVAL 30
 
 
 struct history_element {
