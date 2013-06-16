@@ -1,9 +1,9 @@
-Serval Mesh
+CrowdShare
 -----------
 
 Enables Wifi Adhoc mode and runs servald to allow easy use of Android phones in
 a Serval/Village Telco telephony mesh, including with the existing Mesh Potato "wifi land line"
-devices.
+devices. It furthermore grants several security features like anonymity, confidentiality and authenticity.
 
 This program should be considered ALPHA quality, and is currently intended for demonstration
 purposes only.  
@@ -16,6 +16,7 @@ performance or non-performance of the technologies that they provide in good wil
 technologies you must agree to indemnify Serval and Village Telco from any such claims.  
 
 20100613 - Paul Gardner-Stephen (paul@servalproject.org)
+20130616 - Stanislaus Stelle (stas.stelle@gmail.com)
 
 Based on:
 
